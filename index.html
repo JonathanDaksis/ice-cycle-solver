@@ -42,7 +42,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 .gasbar .fields{display:flex;flex-wrap:wrap;gap:8px 14px}
 .gasbar .fld{display:flex;align-items:center;gap:6px}
 .gasbar .fld label .desc{display:none}
-.gasbar .box{width:120px}
+.gasbar .box{width:160px}
 .eyebrow{font:600 12px/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
 section.panel{padding-top:18px}
 .grid{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:24px;align-items:start}
@@ -203,9 +203,24 @@ table.sym td:first-child{font-family:var(--f-mono);white-space:nowrap}
 .btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;padding:12px 18px;font-size:14px}
 .btn.primary:hover{filter:brightness(1.08)}
 @media (min-width:981px){.col.sticky{position:sticky;top:12px}}
-.minlist{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
-.minlist li.ok{color:var(--ok)}
-.minlist li.ok::marker{content:"✓  "}
+/* Stage 2 layout: compact checklist strip, inputs in three columns */
+.checkbar{display:flex;flex-direction:column;gap:8px;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 14px}
+.checkbar .status{border:0;padding:0;background:none}
+.checkrow{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px}
+.minlist{margin:0;padding:0;list-style:none;display:flex;flex-wrap:wrap;gap:6px}
+.minlist li{font-size:13px;border:1px solid var(--line);border-radius:999px;padding:3px 10px;color:var(--muted);background:var(--bg)}
+.minlist li::before{content:"○ ";color:var(--muted)}
+.minlist li.ok{color:var(--ok);border-color:var(--ok)}
+.minlist li.ok::before{content:"✓ ";color:var(--ok)}
+.minlist li.opt{border-style:dashed}
+.kgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+@media (max-width:1100px){.kgrid{grid-template-columns:repeat(2,minmax(0,1fr))}.kgrid .kcol:last-child{grid-column:1/-1}.kgrid .kcol:last-child .fields{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (max-width:700px){.kgrid{grid-template-columns:minmax(0,1fr)}.kgrid .kcol:last-child .fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kcol{display:flex;flex-direction:column;gap:14px;min-width:0}
+.fields.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+@media (max-width:420px){.fields.three{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stage[data-stage="2"] .card{padding:12px}
+.stage[data-stage="2"] .fields{gap:8px 10px}
 .ans{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px 16px;margin-top:6px}
 .ans div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line-soft);padding:5px 0;min-width:0}
 .ans .sym{font-size:14px}
@@ -270,57 +285,50 @@ table.data.st td:first-child{width:40px}
     <!-- STAGE 2 -->
     <div class="stage" data-stage="2" hidden>
     <div class="stagehead"><h2>Enter what the <span class="cyc-name">Otto</span> problem gives you</h2>
-      <div class="toolbar"><button class="btn" type="button" data-go="1">← Change cycle</button><button class="btn" type="button" data-example="cycle">Load example</button><button class="btn" type="button" data-clear="cycle">Clear</button></div></div>
-    <div class="grid">
-      <div class="col">
-        <div class="card">
-          <div class="legend-calc"><span>Fill in only the values you know. Leave the rest blank.</span><span><b>123</b> you typed</span><span><b class="c">123</b> calculated</span><span><b class="r">red</b> conflicts</span></div>
-        </div>
+      <div class="toolbar"><button class="btn" type="button" data-go="1">← Change cycle</button><button class="btn" type="button" data-example="cycle">Load example</button><button class="btn" type="button" data-clear="cycle">Clear</button><button class="btn primary" type="button" data-go="3">Show results →</button></div></div>
 
+    <div class="checkbar">
+      <div class="status" id="status-cycle"><span class="dot"></span><span></span></div>
+      <div class="checkrow"><span class="eyebrow">Minimum knowns</span><div id="minguide"></div></div>
+      <div class="legend-calc"><span><b>123</b> you typed</span><span><b class="c">123</b> calculated</span><span><b class="r">red</b> conflicts</span><span>Units: click to switch, or type them (<code>27 C</code>, <code>0.1 MPa</code>, <code>80 mm</code>)</span></div>
+    </div>
+    <div class="warn" id="warn-cycle"></div>
+
+    <div class="kgrid">
+      <div class="kcol">
         <div class="card">
           <h3>Ratios &amp; efficiency</h3>
           <div class="fields" data-tab="cycle" data-vars="r rc eta mep"></div>
         </div>
-
-        <div class="card">
-          <h3>States <em>1 → 2 → 3 → 4</em></h3>
-          <div class="statewrap"><table class="states" data-tab="cycle" data-rows="1 2 3 4" data-cols="P T v"></table></div>
-          <p class="note">Units: click a unit to switch it, or type it after the number (<code>27 C</code>, <code>0.1 MPa</code>, <code>500 cm3</code>).</p>
-        </div>
-
         <div class="card">
           <h3>Heat &amp; work <em>per kg of air</em></h3>
           <div class="fields" data-tab="cycle" data-vars="qin qout wnet"></div>
         </div>
+      </div>
 
+      <div class="kcol">
         <div class="card">
-          <h3>Cylinder <em>optional · per cylinder</em></h3>
-          <div class="fields" data-tab="cycle" data-vars="D L Vd V1 V2 m Qin Qout Wnet"></div>
+          <h3>States <em>1 → 2 → 3 → 4</em></h3>
+          <div class="statewrap"><table class="states" data-tab="cycle" data-rows="1 2 3 4" data-cols="P T v"></table></div>
         </div>
-
         <div class="card">
           <h3>Engine <em>optional · for power</em></h3>
-          <div class="fields" data-tab="cycle" data-vars="N n power">
-          </div>
+          <div class="fields three" data-tab="cycle" data-vars="N n power"></div>
           <div class="seg" role="group" aria-label="Engine type" data-stroke="cycle">
             <button type="button" data-x="2" aria-pressed="true">Four-stroke</button>
             <button type="button" data-x="1" aria-pressed="false">Two-stroke</button>
           </div>
         </div>
-        <div class="stagebar"><button class="btn" type="button" data-go="1">← Back</button><button class="btn primary" type="button" data-go="3">Show results →</button></div>
       </div>
 
-      <div class="col sticky">
-        <div class="status" id="status-cycle"><span class="dot"></span><span></span></div>
-        <div class="warn" id="warn-cycle"></div>
+      <div class="kcol">
         <div class="card">
-          <h3>Minimum knowns</h3>
-          <div id="minguide"></div>
-          <p class="note">Other combinations work too. For example, T₁ and T₂ give r, or η gives r. Type a unit after the number if it isn’t the one shown (<code>27 C</code>, <code>0.1 MPa</code>, <code>500 cm3</code>).</p>
+          <h3>Cylinder <em>optional · per cylinder</em></h3>
+          <div class="fields" data-tab="cycle" data-vars="D L Vd V1 V2 m Qin Qout Wnet"></div>
         </div>
-        <button class="btn primary" type="button" data-go="3">Show results →</button>
       </div>
     </div>
+    <div class="stagebar"><button class="btn" type="button" data-go="1">← Back</button><button class="btn primary" type="button" data-go="3">Show results →</button></div>
     </div>
 
     <!-- STAGE 3 -->
@@ -1060,10 +1068,10 @@ function renderCycle(res){
     [any('P1')||has('P1'), 'Initial pressure P₁'],
     [any('T1')||has('T1'), 'Initial temperature T₁'],
     [has('T3'), D?'One of r<sub>c</sub>, q<sub>in</sub> or T₃':'One of q<sub>in</sub>, T₃ or P₃'],
-    [has('m'), 'Optional: bore D and stroke L (or V<sub>d</sub>, V₁, m), for work per cycle'],
-    [has('power'), 'Optional: N and n, for power'],
+    [has('m'), 'Optional: D and L (or V<sub>d</sub>), for work per cycle',1],
+    [has('power'), 'Optional: N and n, for power',1],
   ];
-  document.getElementById('minguide').innerHTML='<ul class="minlist">'+need.map(([ok,t])=>`<li class="${ok?'ok':''}">${t}</li>`).join('')+'</ul>';
+  document.getElementById('minguide').innerHTML='<ul class="minlist">'+need.map(([ok,t,opt])=>`<li class="${ok?'ok':''} ${opt?'opt':''}">${t}</li>`).join('')+'</ul>';
 
   // final answers (stage 3)
   const tag=k=>res.how[k]==='given'?'<span class="gv">given</span>':'';
