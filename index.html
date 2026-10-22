@@ -278,7 +278,7 @@ table.data.st td:first-child{width:40px}
 
         <div class="card">
           <h3>Cylinder <em>optional · per cylinder</em></h3>
-          <div class="fields" data-tab="cycle" data-vars="Vd V1 V2 m Qin Qout Wnet"></div>
+          <div class="fields" data-tab="cycle" data-vars="D L Vd V1 V2 m Qin Qout Wnet"></div>
         </div>
 
         <div class="card">
@@ -464,6 +464,9 @@ table.data.st td:first-child{width:40px}
         <h4>Mean effective pressure</h4>
         <div class="eqn key">MEP = W<sub>net</sub>/(V<sub>max</sub> − V<sub>min</sub>) = w<sub>net</sub>/(v<sub>1</sub> − v<sub>2</sub>)</div>
         <p class="note">kJ/m³ = kPa, so work in kJ over volume in m³ gives MEP in kPa.</p>
+        <h4>Cylinder geometry</h4>
+        <div class="eqn key">V<sub>d</sub> = (π/4) D² L &nbsp;&nbsp; V<sub>1</sub> = V<sub>d</sub> r/(r − 1) &nbsp;&nbsp; V<sub>2</sub> = V<sub>1</sub>/r</div>
+        <p class="note">D = bore (cylinder diameter), L = stroke length, both in metres for V<sub>d</sub> in m³.</p>
         <h4>Power</h4>
         <div class="eqn">four-stroke: Ẇ = W<sub>cycle</sub> N n/120 &nbsp;&nbsp; two-stroke: Ẇ = W<sub>cycle</sub> N n/60</div>
         <h4>Actual engine</h4>
@@ -627,6 +630,9 @@ const CYCLE_RULES = [
   R_('mep',['wnet','v1','v2'],(w,a,b)=>w/(a-b),`MEP = ${sub('w','net')}/(${sub('v',1)} − ${sub('v',2)})`,'mep'),
   R_('wnet',['mep','v1','v2'],(p,a,b)=>p*(a-b),`${sub('w','net')} = MEP (${sub('v',1)} − ${sub('v',2)})`,'mep'),
   // cylinder geometry & mass
+  R_('Vd',['D','L'],(D,L)=>Math.PI/4*D*D*L,`${sub('V','d')} = (π/4) D² L`,'bore'),
+  R_('L',['Vd','D'],(V,D)=>4*V/(Math.PI*D*D),`L = 4${sub('V','d')}/(π D²)`,'bore'),
+  R_('D',['Vd','L'],(V,L)=>Math.sqrt(4*V/(Math.PI*L)),`D = √(4${sub('V','d')}/(π L))`,'bore'),
   R_('V1',['Vd','r'],(V,r)=>V*r/(r-1),`${sub('V',1)} = ${sub('V','d')} r/(r − 1)`,'Vd-r'),
   R_('V2',['V1','r'],(V,r)=>V/r,`${sub('V',2)} = ${sub('V',1)}/r`,'r=V1/V2'),
   R_('V1',['V2','r'],(V,r)=>V*r,`${sub('V',1)} = r ${sub('V',2)}`,'r=V1/V2'),
@@ -779,6 +785,7 @@ const DIMS={
   pres:[U('kPa',1,0,['kpa']),U('MPa',1000,0,['mpa']),U('bar',100,0,['bar']),U('Pa',.001,0,['pa']),U('atm',101.325,0,['atm'])],
   vol:[U('m³',1,0,['m3','m³']),U('L',.001,0,['l','dm3']),U('cm³',1e-6,0,['cm3','cm³','cc','ml'])],
   sv:[U('m³/kg',1,0,['m3/kg','m³/kg'])],
+  len:[U('m',1,0,['m']),U('cm',.01,0,['cm']),U('mm',.001,0,['mm'])],
   q:[U('kJ/kg',1,0,['kj/kg'])],
   E:[U('kJ',1,0,['kj']),U('J',.001,0,['j'])],
   pow:[U('kW',1,0,['kw']),U('hp',.7457,0,['hp']),U('W',.001,0,['w'])],
@@ -808,6 +815,8 @@ const VARS={
     qout:{lab:sub('q','out'),desc:'heat rejected',dim:'q'},
     wnet:{lab:sub('w','net'),desc:'net work',dim:'q'},
     P1:sp(1),P2:sp(2),P3:sp(3),P4:sp(4),T1:st(1),T2:st(2),T3:st(3),T4:st(4),v1:sv(1),v2:sv(2),v3:sv(3),v4:sv(4),
+    D:{lab:'D',desc:'bore (diameter)',dim:'len',ug:'len'},
+    L:{lab:'L',desc:'stroke (length)',dim:'len',ug:'len'},
     Vd:{lab:sub('V','d'),desc:'displacement',dim:'vol',ug:'V'},
     V1:{lab:sub('V',1),desc:'max volume (BDC)',dim:'vol',ug:'V'},
     V2:{lab:sub('V',2),desc:'clearance (TDC)',dim:'vol',ug:'V'},
@@ -842,7 +851,7 @@ const VARS={
 const LABEL = {k:'k',cp:sub('c','p'),cv:sub('c','v'),R:'R',x:'rev/cycle'};
 const lab=(tab,v)=>(VARS[tab][v]||VARS.gas[v]||{}).lab||LABEL[v]||v;
 const dimOf=(tab,v)=>(VARS[tab][v]||VARS.gas[v]||{dim:'none'}).dim;
-const BASEU={none:'',temp:'K',pres:'kPa',vol:'m³',sv:'m³/kg',q:'kJ/kg',E:'kJ',pow:'kW',pct:'',rpm:'rpm',mass:'kg',cq:'kJ/kg·K',kgph:'kg/h',CV:'kJ/kg',gkwh:'g/kWh'};
+const BASEU={len:'m',none:'',temp:'K',pres:'kPa',vol:'m³',sv:'m³/kg',q:'kJ/kg',E:'kJ',pow:'kW',pct:'',rpm:'rpm',mass:'kg',cq:'kJ/kg·K',kgph:'kg/h',CV:'kJ/kg',gkwh:'g/kWh'};
 
 const EXAMPLES={
   cycle:{
@@ -989,7 +998,7 @@ function renderCycle(res){
   else if(!has('T1')&&!has('T2')) msg='Add <b>T₁</b> to get the state temperatures.';
   else if(!has('T3')) msg= D ? 'Add one heat-addition value: <b>r<sub>c</sub></b>, <b>q<sub>in</sub></b> or <b>T₃</b>.' : 'Add one heat-addition value: <b>q<sub>in</sub></b>, <b>T₃</b> or <b>P₃</b>.';
   else if(!has('P1')&&!has('v1')) msg='Add <b>P₁</b> to get pressures, volumes and the MEP.';
-  else if(!has('m')) msg='Cycle solved per kg. For per-cycle work and power, add <b>V<sub>d</sub></b>, <b>V₁</b> or <b>m</b>.';
+  else if(!has('m')) msg='Cycle solved per kg. For per-cycle work and power, add bore <b>D</b> and stroke <b>L</b> (or <b>V<sub>d</sub></b>, <b>V₁</b>, <b>m</b>).';
   else if(!has('power')) { msg='Cycle solved. Add the engine speed <b>n</b> for power.'; done=true; }
   else { msg='Cycle fully solved, including engine power.'; done=true; }
   setStatus('cycle',msg,done);
@@ -1021,7 +1030,7 @@ function renderCycle(res){
     [any('P1')||has('P1'), 'Initial pressure P₁'],
     [any('T1')||has('T1'), 'Initial temperature T₁'],
     [has('T3'), D?'One of r<sub>c</sub>, q<sub>in</sub> or T₃':'One of q<sub>in</sub>, T₃ or P₃'],
-    [has('m'), 'Optional: V<sub>d</sub>, V₁ or m, for work per cycle'],
+    [has('m'), 'Optional: bore D and stroke L (or V<sub>d</sub>, V₁, m), for work per cycle'],
     [has('power'), 'Optional: N and n, for power'],
   ];
   document.getElementById('minguide').innerHTML='<ul class="minlist">'+need.map(([ok,t])=>`<li class="${ok?'ok':''}">${t}</li>`).join('')+'</ul>';
@@ -1033,7 +1042,7 @@ function renderCycle(res){
   const sn=['Start of compression','End of compression',D?'End of heat addition (cut-off)':'End of heat addition','End of expansion'];
   for(let i=1;i<=4;i++) a+=`<tr><td>${i}</td><td>${sn[i-1]}</td><td>${cell('P'+i)}</td><td>${cell('T'+i)}</td><td>${cell('v'+i)}</td></tr>`;
   a+='</tbody></table></div><div class="ans">';
-  for(const k of ['eta','r',D&&'rc','qin','qout','wnet','mep','Vd','V1','V2','m','Qin','Qout','Wnet','power']){
+  for(const k of ['eta','r',D&&'rc','qin','qout','wnet','mep','D','L','Vd','V1','V2','m','Qin','Qout','Wnet','power']){
     if(!k||!has(k)) continue;
     const u=unitOf('cycle',k).s;
     a+=`<div><span><span class="sym">${lab('cycle',k)}</span>${tag(k)}</span><b>${fmtU('cycle',k,v[k])}${u?`<small>${u}</small>`:''}</b></div>`;
