@@ -1,0 +1,1202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Solve air-standard Otto and Diesel cycles step by step: states, efficiency, MEP, power, and P–v / T–s diagrams.">
+<title>Otto &amp; Diesel Cycle Solver</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%23d9480f'/%3E%3Cpath d='M6 26 Q14 24 9 9 L20 9 Q22 20 26 22 L26 26Z' fill='none' stroke='white' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: instrument-panel workbench. Inputs column on the left, live readouts + diagrams on the right; stacks on phones. */
+:root{
+  --bg:#eceff1; --panel:#fbfcfc; --ink:#15222c; --muted:#5a6a76; --line:#d2dade; --line-soft:#e3e8eb;
+  --accent:#d9480f; --accent-soft:rgba(217,72,15,.13); --calc:#0a6e8c; --cool:#1c64c8; --bad:#c42b2b; --bad-soft:rgba(196,43,43,.1); --ok:#2b8a3e;
+  --f-display:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0e1519; --panel:#151f25; --ink:#e4ebef; --muted:#8fa0ab; --line:#2a3842; --line-soft:#1f2b33;
+  --accent:#ff7a3d; --accent-soft:rgba(255,122,61,.17); --calc:#5fc9e8; --cool:#6ea8ff; --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.12); --ok:#69db7c; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1519; --panel:#151f25; --ink:#e4ebef; --muted:#8fa0ab; --line:#2a3842; --line-soft:#1f2b33;
+  --accent:#ff7a3d; --accent-soft:rgba(255,122,61,.17); --calc:#5fc9e8; --cool:#6ea8ff; --bad:#ff6b6b; --bad-soft:rgba(255,107,107,.12); --ok:#69db7c; color-scheme:dark}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+img{max-width:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body)}
+.wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+h1{font:700 clamp(30px,5vw,44px)/1 var(--f-display);letter-spacing:.01em;text-transform:uppercase;margin:0;text-wrap:balance}
+h1 span{color:var(--accent)}
+.tag{color:var(--muted);margin:6px 0 0;max-width:62ch}
+nav.tabs{display:flex;flex-wrap:wrap;gap:4px}
+nav.tabs button{font:600 15px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;padding:9px 14px;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:6px;cursor:pointer}
+nav.tabs button[aria-selected="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.gasbar{display:flex;flex-wrap:wrap;align-items:center;gap:8px 18px;padding:10px 0;border-bottom:1px solid var(--line);color:var(--muted);font-size:13px}
+.gasbar .fields{display:flex;flex-wrap:wrap;gap:8px 14px}
+.gasbar .fld{display:flex;align-items:center;gap:6px}
+.gasbar .fld label .desc{display:none}
+.gasbar .box{width:120px}
+.eyebrow{font:600 12px/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted)}
+section.panel{padding-top:18px}
+.grid{display:grid;grid-template-columns:minmax(0,440px) minmax(0,1fr);gap:24px;align-items:start}
+@media (max-width:980px){.grid{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.card h3{margin:0;font:600 12px/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.card h3 em{font-style:normal;text-transform:none;letter-spacing:0;font-weight:400}
+.toolbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;flex-wrap:wrap}
+.seg button{border:0;background:var(--panel);color:var(--muted);font:500 14px/1 var(--f-body);padding:9px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.btn{border:1px solid var(--line);background:var(--panel);color:var(--ink);font:500 13px/1 var(--f-body);padding:9px 12px;border-radius:6px;cursor:pointer}
+.btn:hover{border-color:var(--ink)}
+.spacer{flex:1}
+.fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 12px}
+@media (max-width:420px){.card .fields{grid-template-columns:minmax(0,1fr)}}
+.fld label{display:flex;align-items:baseline;gap:6px;margin-bottom:3px;min-width:0}
+.sym{font:500 15px/1.2 var(--f-mono);color:var(--ink);white-space:nowrap}
+.desc{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.box{display:flex;align-items:stretch;border:1px solid var(--line);border-radius:6px;background:var(--bg);overflow:hidden}
+.box:focus-within{border-color:var(--accent)}
+.box input,table.states input{flex:1;min-width:0;width:100%;border:0;background:transparent;color:var(--ink);font:500 15px/1 var(--f-mono);padding:9px 8px;font-variant-numeric:tabular-nums}
+input::placeholder{color:var(--muted);opacity:.7}
+input.calc::placeholder{color:var(--calc);opacity:1}
+input.given{color:var(--ink)}
+.fld.bad .box,td.bad{box-shadow:inset 0 0 0 2px var(--bad);background:var(--bad-soft)}
+.u{border:0;border-left:1px solid var(--line);background:var(--panel);color:var(--muted);font:500 12px/1 var(--f-mono);padding:0 9px;display:flex;align-items:center;white-space:nowrap;min-width:42px;justify-content:center}
+button.u{cursor:pointer;color:var(--ink)}
+button.u:hover{color:var(--accent)}
+.statewrap{overflow-x:auto}
+table.states{border-collapse:separate;border-spacing:0;width:100%;min-width:320px}
+table.states th{font:500 12px/1.2 var(--f-body);color:var(--muted);text-align:left;padding:0 4px 6px}
+table.states th .sym{font-size:14px}
+table.states th button.u,table.states th span.u{display:inline-flex;border:1px solid var(--line);border-radius:4px;padding:3px 6px;min-width:0;margin-left:4px;height:auto}
+table.states td{border:1px solid var(--line);background:var(--bg);padding:0}
+table.states tr td:first-child{background:transparent;border:0;font:700 18px/1 var(--f-display);color:var(--accent);padding-right:8px;width:28px;text-align:center}
+table.states td:focus-within{box-shadow:inset 0 0 0 2px var(--accent)}
+table.states tbody tr:first-child td+td{border-top-width:1px}
+.legend-calc{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 14px}
+.legend-calc b{font:500 12px var(--f-mono)}
+.legend-calc .c{color:var(--calc)}
+.legend-calc .r{color:var(--bad)}
+.status{display:flex;gap:10px;align-items:flex-start;font-size:14px;padding:10px 12px;border-radius:6px;background:var(--panel);border:1px solid var(--line)}
+.status .dot{width:10px;height:10px;border-radius:50%;background:var(--accent);flex:none;margin-top:5px}
+.status.done .dot{background:var(--ok)}
+.warn{display:flex;flex-direction:column;gap:6px}
+.warn div{background:var(--bad-soft);color:var(--ink);border-left:3px solid var(--bad);padding:8px 10px;border-radius:4px;font-size:13px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.tile{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;min-width:0}
+.tile .k{font-size:12px;color:var(--muted)}
+.tile .k .sym{font-size:13px;color:var(--muted)}
+.tile .v{font:700 32px/1.05 var(--f-display);margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile .v small{font:500 13px var(--f-mono);color:var(--muted);margin-left:4px}
+.tile.hero{border-color:var(--accent);background:linear-gradient(var(--accent-soft),var(--accent-soft)),var(--panel)}
+.tile.hero .v{color:var(--accent)}
+.tile .s{font-size:12px;color:var(--muted);margin-top:2px}
+.diagrams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.diagrams{grid-template-columns:minmax(0,1fr)}}
+.diagrams figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 10px 6px;min-width:0}
+.diagrams figcaption{font:600 12px/1.2 var(--f-body);letter-spacing:.09em;text-transform:uppercase;color:var(--muted);padding:2px 4px 6px}
+svg.plot{width:100%;height:auto;display:block}
+svg.plot text{fill:var(--muted);font:11px var(--f-mono)}
+svg.plot .ax{stroke:var(--ink);stroke-width:1.2}
+svg.plot .gr{stroke:var(--line-soft);stroke-width:1}
+svg.plot .area{fill:var(--accent-soft);stroke:none}
+svg.plot .seg{fill:none;stroke:var(--ink);stroke-width:2}
+svg.plot .hin{fill:none;stroke:var(--accent);stroke-width:2.6}
+svg.plot .hout{fill:none;stroke:var(--cool);stroke-width:2.6}
+svg.plot .pt{fill:var(--panel);stroke:var(--ink);stroke-width:1.6}
+svg.plot .pl{fill:var(--ink);font:700 14px var(--f-display)}
+svg.plot .alab{fill:var(--ink);font:500 11px var(--f-body)}
+.empty{display:flex;align-items:center;justify-content:center;text-align:center;aspect-ratio:380/280;max-width:100%;color:var(--muted);font-size:13px;padding:20px;border:1px dashed var(--line);border-radius:6px}
+.keyrow{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:var(--muted)}
+.keyrow i{display:inline-block;width:18px;height:3px;vertical-align:middle;margin-right:5px;border-radius:2px}
+.tablewrap{overflow-x:auto}
+table.data{border-collapse:collapse;width:100%;font-size:14px;min-width:460px}
+table.data th,table.data td{padding:7px 8px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap}
+table.data th{font:500 12px/1.2 var(--f-body);color:var(--muted);border-bottom:1px solid var(--line)}
+table.data th:first-child,table.data td:first-child,table.data th:nth-child(2),table.data td:nth-child(2){text-align:left}
+table.data td{font-family:var(--f-mono);font-variant-numeric:tabular-nums}
+table.data td:nth-child(2){font-family:var(--f-body);color:var(--muted)}
+table.data tr.net td{border-top:2px solid var(--ink);font-weight:500}
+table.data td:first-child{font:700 16px var(--f-display);color:var(--accent)}
+.note{font-size:12px;color:var(--muted);margin:0}
+ol.steps{margin:0;padding:0;list-style:none;counter-reset:s;display:flex;flex-direction:column;gap:2px}
+ol.steps li{counter-increment:s;display:grid;grid-template-columns:28px minmax(0,1fr);gap:2px 8px;padding:8px 0;border-bottom:1px solid var(--line-soft)}
+ol.steps li::before{content:counter(s);font:600 12px/1.8 var(--f-mono);color:var(--muted)}
+ol.steps .eq{font:500 14px/1.5 var(--f-mono)}
+ol.steps .with{font:12px/1.5 var(--f-mono);color:var(--muted);grid-column:2;overflow-wrap:anywhere}
+ol.steps .res{grid-column:2;font:500 14px var(--f-mono);color:var(--calc)}
+.muted{color:var(--muted)}
+details.how summary{cursor:pointer;color:var(--muted);font-size:13px}
+details.how p{font-size:13px;color:var(--muted);margin:6px 0 0}
+kbd,code{font-family:var(--f-mono);font-size:.92em;background:var(--bg);border:1px solid var(--line);border-radius:4px;padding:0 4px}
+
+/* Formula sheet */
+.sheet{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,360px),1fr));gap:14px;align-items:start}
+.sheet .card{gap:6px}
+.sheet h2{font:700 24px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:22px 0 4px;grid-column:1/-1}
+.sheet h2:first-child{margin-top:0}
+.sheet h4{margin:8px 0 0;font:600 14px/1.3 var(--f-body)}
+.sheet h4 .pn{font:700 16px var(--f-display);color:var(--accent);margin-right:6px}
+.eqn{font:500 15px/1.6 var(--f-mono);padding:4px 10px;border-left:2px solid var(--line);overflow-x:auto;white-space:nowrap}
+.eqn.key{border-left-color:var(--accent);background:var(--accent-soft);border-radius:0 4px 4px 0}
+.sheet p{margin:2px 0;font-size:14px}
+.frac{display:inline-flex;flex-direction:column;vertical-align:middle;text-align:center;font-size:.92em;margin:0 2px}
+.frac>span:first-child{border-bottom:1px solid currentColor;padding:0 2px}
+.frac>span:last-child{padding:0 2px}
+table.sym{border-collapse:collapse;width:100%;font-size:14px}
+table.sym td,table.sym th{padding:5px 6px;border-bottom:1px solid var(--line-soft);text-align:left;vertical-align:top}
+table.sym th{font:500 12px var(--f-body);color:var(--muted);border-bottom:1px solid var(--line)}
+table.sym td:first-child{font-family:var(--f-mono);white-space:nowrap}
+.tip{grid-column:1/-1;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:12px 14px;font-size:14px}
+/* Stages */
+.stepper{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;list-style:none;padding:0;margin:0 0 18px}
+.stepper li{display:flex;align-items:center;gap:8px}
+.stepper li+li::before{content:"";width:32px;height:1px;background:var(--line)}
+.stepper button{display:flex;align-items:center;gap:8px;border:0;background:none;color:var(--muted);font:600 16px/1 var(--f-display);letter-spacing:.06em;text-transform:uppercase;cursor:pointer;padding:6px 2px}
+.stepper .n{width:28px;height:28px;border-radius:50%;border:1.5px solid var(--line);display:grid;place-items:center;font:600 13px var(--f-mono)}
+.stepper button.done{color:var(--ink)}
+.stepper button.done .n{border-color:var(--ink)}
+.stepper button[aria-current="step"]{color:var(--ink)}
+.stepper button[aria-current="step"] .n{background:var(--accent);border-color:var(--accent);color:#fff}
+.stage{display:flex;flex-direction:column;gap:16px}
+.stagehead{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px 16px}
+.stagehead h2{font:700 clamp(22px,3.4vw,30px)/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;margin:0;text-wrap:balance}
+.choices{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}
+@media (max-width:700px){.choices{grid-template-columns:minmax(0,1fr)}}
+.choice{text-align:left;border:1px solid var(--line);background:var(--panel);border-radius:10px;padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:10px;color:var(--ink);font:inherit;min-width:0}
+.choice:hover{border-color:var(--accent)}
+.choice[aria-pressed="true"]{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+.choice h2{font:700 34px/1 var(--f-display);text-transform:uppercase;margin:0}
+.choice svg{width:100%;max-width:260px;height:auto}
+.choice svg .sk{fill:none;stroke:var(--ink);stroke-width:2.5}
+.choice svg .hi{stroke:var(--accent);stroke-width:3.5}
+.choice svg .ho{stroke:var(--cool);stroke-width:3.5}
+.choice svg text{fill:var(--muted);font:700 13px var(--f-display)}
+.choice .eqn{white-space:normal}
+.stagebar{display:flex;justify-content:space-between;gap:8px}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600;padding:12px 18px;font-size:14px}
+.btn.primary:hover{filter:brightness(1.08)}
+@media (min-width:981px){.col.sticky{position:sticky;top:12px}}
+.minlist{margin:0;padding-left:18px;font-size:14px;display:flex;flex-direction:column;gap:4px}
+.minlist li.ok{color:var(--ok)}
+.minlist li.ok::marker{content:"✓  "}
+.ans{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:8px 16px;margin-top:6px}
+.ans div{display:flex;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line-soft);padding:5px 0;min-width:0}
+.ans .sym{font-size:14px}
+.ans b{font:500 14px var(--f-mono);font-variant-numeric:tabular-nums;white-space:nowrap}
+.ans b small{color:var(--muted);font-weight:400;margin-left:3px}
+.gv{font:500 10px/1 var(--f-body);letter-spacing:.06em;text-transform:uppercase;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:2px 4px;margin-left:6px;vertical-align:2px}
+table.data.st td:first-child{width:40px}
+@media (prefers-reduced-motion:no-preference){.tile .v,input.calc::placeholder{transition:color .2s}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header class="top">
+    <div>
+      <h1>Otto <span>&amp;</span> Diesel Cycle Solver</h1>
+      <p class="tag">Air-standard cycles with constant specific heats. Type only what the problem gives you. Every other value that follows from the formulas fills in, with the working shown.</p>
+    </div>
+    <nav class="tabs" role="tablist" aria-label="Calculators">
+      <button role="tab" data-tab="solver" aria-selected="true">Cycle solver</button>
+      <button role="tab" data-tab="process" aria-selected="false">Single process</button>
+      <button role="tab" data-tab="fuel" aria-selected="false">Power &amp; fuel</button>
+      <button role="tab" data-tab="sheet" aria-selected="false">Formula sheet</button>
+    </nav>
+  </header>
+
+  <div class="gasbar" id="gasbar">
+    <span class="eyebrow">Gas properties (air)</span>
+    <div class="fields" data-tab="gas" data-vars="k cp cv R"></div>
+    <span>Blank = default value. Used by every calculator.</span>
+  </div>
+
+  <!-- ============ CYCLE SOLVER ============ -->
+  <section class="panel" id="tab-solver" role="tabpanel">
+    <ol class="stepper" aria-label="Steps">
+      <li><button type="button" data-go="1"><span class="n">1</span>Choose cycle</button></li>
+      <li><button type="button" data-go="2"><span class="n">2</span>Enter knowns</button></li>
+      <li><button type="button" data-go="3"><span class="n">3</span>Results</button></li>
+    </ol>
+
+    <!-- STAGE 1 -->
+    <div class="stage" data-stage="1">
+      <div class="stagehead"><h2>Which cycle is the problem about?</h2></div>
+      <div class="choices">
+        <button type="button" class="choice" data-mode="otto" data-go="2">
+          <span class="eyebrow">Spark ignition · petrol engine</span>
+          <h2>Otto cycle</h2>
+          <svg viewBox="0 0 220 120" aria-hidden="true"><path class="sk" d="M190 100 Q80 92 40 60"/><path class="sk hi" d="M40 60 L40 14"/><path class="sk" d="M40 14 Q90 70 190 82"/><path class="sk ho" d="M190 82 L190 100"/><text x="196" y="106">1</text><text x="26" y="64">2</text><text x="26" y="16">3</text><text x="196" y="80">4</text></svg>
+          <span>Heat is added at <b>constant volume</b> (2–3).</span>
+          <span class="eqn">η = 1 − 1/r<sup>k−1</sup></span>
+        </button>
+        <button type="button" class="choice" data-mode="diesel" data-go="2">
+          <span class="eyebrow">Compression ignition · diesel engine</span>
+          <h2>Diesel cycle</h2>
+          <svg viewBox="0 0 220 120" aria-hidden="true"><path class="sk" d="M190 100 Q70 94 30 16"/><path class="sk hi" d="M30 16 L75 16"/><path class="sk" d="M75 16 Q110 70 190 80"/><path class="sk ho" d="M190 80 L190 100"/><text x="196" y="106">1</text><text x="16" y="20">2</text><text x="78" y="12">3</text><text x="196" y="78">4</text></svg>
+          <span>Heat is added at <b>constant pressure</b> (2–3).</span>
+          <span class="eqn">η = 1 − (1/r<sup>k−1</sup>)·(r<sub>c</sub><sup>k</sup> − 1)/[k(r<sub>c</sub> − 1)]</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STAGE 2 -->
+    <div class="stage" data-stage="2" hidden>
+    <div class="stagehead"><h2>Enter what the <span class="cyc-name">Otto</span> problem gives you</h2>
+      <div class="toolbar"><button class="btn" type="button" data-go="1">← Change cycle</button><button class="btn" type="button" data-example="cycle">Load example</button><button class="btn" type="button" data-clear="cycle">Clear</button></div></div>
+    <div class="grid">
+      <div class="col">
+        <div class="card">
+          <div class="legend-calc"><span>Fill in only the values you know. Leave the rest blank.</span><span><b>123</b> you typed</span><span><b class="c">123</b> calculated</span><span><b class="r">red</b> conflicts</span></div>
+        </div>
+
+        <div class="card">
+          <h3>Ratios &amp; efficiency</h3>
+          <div class="fields" data-tab="cycle" data-vars="r rc eta mep"></div>
+        </div>
+
+        <div class="card">
+          <h3>States <em>1 → 2 → 3 → 4</em></h3>
+          <div class="statewrap"><table class="states" data-tab="cycle" data-rows="1 2 3 4" data-cols="P T v"></table></div>
+          <p class="note">Units: click a unit to switch it, or type it after the number (<code>27 C</code>, <code>0.1 MPa</code>, <code>500 cm3</code>).</p>
+        </div>
+
+        <div class="card">
+          <h3>Heat &amp; work <em>per kg of air</em></h3>
+          <div class="fields" data-tab="cycle" data-vars="qin qout wnet"></div>
+        </div>
+
+        <div class="card">
+          <h3>Cylinder <em>optional · per cylinder</em></h3>
+          <div class="fields" data-tab="cycle" data-vars="Vd V1 V2 m Qin Qout Wnet"></div>
+        </div>
+
+        <div class="card">
+          <h3>Engine <em>optional · for power</em></h3>
+          <div class="fields" data-tab="cycle" data-vars="N n power">
+          </div>
+          <div class="seg" role="group" aria-label="Engine type" data-stroke="cycle">
+            <button type="button" data-x="2" aria-pressed="true">Four-stroke</button>
+            <button type="button" data-x="1" aria-pressed="false">Two-stroke</button>
+          </div>
+        </div>
+        <div class="stagebar"><button class="btn" type="button" data-go="1">← Back</button><button class="btn primary" type="button" data-go="3">Show results →</button></div>
+      </div>
+
+      <div class="col sticky">
+        <div class="status" id="status-cycle"><span class="dot"></span><span></span></div>
+        <div class="warn" id="warn-cycle"></div>
+        <div class="card">
+          <h3>Minimum knowns</h3>
+          <div id="minguide"></div>
+          <p class="note">Other combinations work too. For example, T₁ and T₂ give r, or η gives r. Type a unit after the number if it isn’t the one shown (<code>27 C</code>, <code>0.1 MPa</code>, <code>500 cm3</code>).</p>
+        </div>
+        <button class="btn primary" type="button" data-go="3">Show results →</button>
+      </div>
+    </div>
+    </div>
+
+    <!-- STAGE 3 -->
+    <div class="stage" data-stage="3" hidden>
+      <div class="stagehead"><h2><span class="cyc-name">Otto</span> cycle results</h2>
+        <div class="toolbar"><button class="btn" type="button" data-go="2">← Edit knowns</button><button class="btn" type="button" data-restart>Start a new problem</button></div></div>
+      <div class="col">
+        <div class="tiles" id="tiles-cycle"></div>
+        <div class="warn" id="warn-cycle3"></div>
+        <div class="card">
+          <h3>Final answers <em>given values are tagged</em></h3>
+          <div id="answers-cycle"></div>
+        </div>
+        <div class="diagrams">
+          <figure><figcaption>P–v diagram</figcaption><div id="pv"></div></figure>
+          <figure><figcaption>T–s diagram</figcaption><div id="ts"></div></figure>
+        </div>
+        <div class="keyrow"><span><i style="background:var(--accent)"></i>heat added (2–3)</span><span><i style="background:var(--cool)"></i>heat rejected (4–1)</span><span><i style="background:var(--accent-soft);height:10px"></i>enclosed area = w<sub>net</sub></span></div>
+        <div class="card">
+          <h3>Process by process <em>per kg · + heat into air, + work done by air</em></h3>
+          <div class="tablewrap" id="proc-cycle"></div>
+        </div>
+        <div class="card">
+          <h3>Working <em>in the order it was solved</em></h3>
+          <ol class="steps" id="steps-cycle"></ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ SINGLE PROCESS ============ -->
+  <section class="panel" id="tab-process" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="col">
+        <div class="card">
+          <div class="toolbar">
+            <div class="seg" role="group" aria-label="Process type" id="pmode">
+              <button type="button" data-p="s" aria-pressed="true">Isentropic</button>
+              <button type="button" data-p="v" aria-pressed="false">Const. volume</button>
+              <button type="button" data-p="p" aria-pressed="false">Const. pressure</button>
+              <button type="button" data-p="g" aria-pressed="false">Any two states</button>
+            </div>
+          </div>
+          <div class="toolbar"><span class="muted" id="pmode-desc" style="font-size:13px"></span><span class="spacer"></span>
+            <button class="btn" type="button" data-example="process">Load example</button>
+            <button class="btn" type="button" data-clear="process">Clear</button></div>
+        </div>
+        <div class="card">
+          <h3>States <em>1 → 2</em></h3>
+          <div class="statewrap"><table class="states" data-tab="process" data-rows="1 2" data-cols="P T v V"></table></div>
+          <div class="fields" data-tab="process" data-vars="r m"></div>
+        </div>
+        <div class="card">
+          <h3>Energy <em>per kg</em></h3>
+          <div class="fields" data-tab="process" data-vars="q w du dh"></div>
+        </div>
+        <div class="card">
+          <h3>Energy <em>total, needs m</em></h3>
+          <div class="fields" data-tab="process" data-vars="Q W dU"></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="status" id="status-process"><span class="dot"></span><span></span></div>
+        <div class="warn" id="warn-process"></div>
+        <div class="card">
+          <h3>Working</h3>
+          <ol class="steps" id="steps-process"></ol>
+        </div>
+        <div class="card">
+          <h3>Formulas used here</h3>
+          <div id="pformulas"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ POWER & FUEL ============ -->
+  <section class="panel" id="tab-fuel" role="tabpanel" hidden>
+    <div class="grid">
+      <div class="col">
+        <div class="card">
+          <div class="toolbar"><span class="eyebrow">Actual engine</span><span class="spacer"></span>
+            <button class="btn" type="button" data-example="fuel">Load example</button>
+            <button class="btn" type="button" data-clear="fuel">Clear</button></div>
+        </div>
+        <div class="card">
+          <h3>Power from work per cycle</h3>
+          <div class="fields" data-tab="fuel" data-vars="Wcyc N n power"></div>
+          <div class="seg" role="group" aria-label="Engine type" data-stroke="fuel">
+            <button type="button" data-x="2" aria-pressed="true">Four-stroke</button>
+            <button type="button" data-x="1" aria-pressed="false">Two-stroke</button>
+          </div>
+        </div>
+        <div class="card">
+          <h3>Fuel</h3>
+          <div class="fields" data-tab="fuel" data-vars="mf CV Qf eta bsfc"></div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="status" id="status-fuel"><span class="dot"></span><span></span></div>
+        <div class="warn" id="warn-fuel"></div>
+        <div class="card">
+          <h3>Working</h3>
+          <ol class="steps" id="steps-fuel"></ol>
+        </div>
+        <div class="card">
+          <h3>Formulas used here</h3>
+          <div class="eqn">Ẇ = W<sub>cycle</sub> · N · n / 120 <span class="muted">(four-stroke)</span></div>
+          <div class="eqn">Ẇ = W<sub>cycle</sub> · N · n / 60 <span class="muted">(two-stroke)</span></div>
+          <div class="eqn key">η<sub>th</sub> = Ẇ<sub>out</sub> / (ṁ<sub>f</sub> · CV)</div>
+          <div class="eqn key">BSFC = ṁ<sub>f</sub> / Ẇ<sub>brake</sub></div>
+          <p class="note">W<sub>cycle</sub> is the work per cylinder per cycle. ṁ<sub>f</sub>·CV is the fuel heat rate Q̇<sub>fuel</sub>. BSFC is shown in g/kWh.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ FORMULA SHEET ============ -->
+  <section class="panel" id="tab-sheet" role="tabpanel" hidden>
+    <div class="sheet">
+      <h2>1 · Symbols &amp; basics</h2>
+      <div class="card">
+        <table class="sym">
+          <tr><th>Symbol</th><th>Meaning</th><th>Unit</th></tr>
+          <tr><td>P</td><td>Pressure (absolute)</td><td>kPa</td></tr>
+          <tr><td>V, v</td><td>Volume, specific volume</td><td>m³, m³/kg</td></tr>
+          <tr><td>T</td><td>Absolute temperature</td><td>K</td></tr>
+          <tr><td>m</td><td>Mass of air</td><td>kg</td></tr>
+          <tr><td>R</td><td>Gas constant of air</td><td>0.287 kJ/(kg·K)</td></tr>
+          <tr><td>c<sub>v</sub></td><td>Specific heat, constant volume</td><td>0.718 kJ/(kg·K)</td></tr>
+          <tr><td>c<sub>p</sub></td><td>Specific heat, constant pressure</td><td>1.005 kJ/(kg·K)</td></tr>
+          <tr><td>k = γ</td><td>Specific heat ratio c<sub>p</sub>/c<sub>v</sub></td><td>≈ 1.4</td></tr>
+          <tr><td>r</td><td>Compression ratio</td><td>–</td></tr>
+          <tr><td>r<sub>c</sub></td><td>Cut-off ratio (Diesel)</td><td>–</td></tr>
+          <tr><td>Q<sub>in</sub>, Q<sub>out</sub></td><td>Heat supplied, rejected</td><td>kJ or kJ/kg</td></tr>
+          <tr><td>W<sub>net</sub></td><td>Net work output</td><td>kJ or kJ/kg</td></tr>
+          <tr><td>η</td><td>Thermal efficiency</td><td>%</td></tr>
+        </table>
+      </div>
+      <div class="card">
+        <h4>Ideal gas</h4>
+        <div class="eqn key">PV = mRT &nbsp;&nbsp; Pv = RT</div>
+        <h4>Specific heats</h4>
+        <div class="eqn">k = γ = c<sub>p</sub>/c<sub>v</sub> &nbsp;&nbsp; c<sub>p</sub> − c<sub>v</sub> = R</div>
+        <h4>First law, closed system</h4>
+        <div class="eqn key">Q − W = ΔU</div>
+        <div class="eqn">Δu = c<sub>v</sub>(T<sub>2</sub> − T<sub>1</sub>) &nbsp;&nbsp; Δh = c<sub>p</sub>(T<sub>2</sub> − T<sub>1</sub>)</div>
+        <h4>Any two states (fixed mass)</h4>
+        <div class="eqn">P<sub>1</sub>V<sub>1</sub>/T<sub>1</sub> = P<sub>2</sub>V<sub>2</sub>/T<sub>2</sub></div>
+        <div class="eqn">const V: P<sub>2</sub>/P<sub>1</sub> = T<sub>2</sub>/T<sub>1</sub> &nbsp;&nbsp; const P: V<sub>2</sub>/V<sub>1</sub> = T<sub>2</sub>/T<sub>1</sub></div>
+        <div class="eqn">isentropic: PV<sup>k</sup>, TV<sup>k−1</sup>, T<sup>k</sup>P<sup>1−k</sup> = const</div>
+      </div>
+      <div class="card">
+        <h4>Heat and work by process</h4>
+        <div class="eqn">const V: W = 0, &nbsp;Q = ΔU = mc<sub>v</sub>(T<sub>2</sub> − T<sub>1</sub>)</div>
+        <div class="eqn">const P: W = P(V<sub>2</sub> − V<sub>1</sub>), &nbsp;Q = mc<sub>p</sub>(T<sub>2</sub> − T<sub>1</sub>)</div>
+        <div class="eqn">isentropic: Q = 0, &nbsp;W = mc<sub>v</sub>(T<sub>1</sub> − T<sub>2</sub>)</div>
+        <h4>Mean effective pressure</h4>
+        <div class="eqn key">MEP = W<sub>net</sub>/(V<sub>max</sub> − V<sub>min</sub>) = w<sub>net</sub>/(v<sub>1</sub> − v<sub>2</sub>)</div>
+        <p class="note">kJ/m³ = kPa, so work in kJ over volume in m³ gives MEP in kPa.</p>
+        <h4>Power</h4>
+        <div class="eqn">four-stroke: Ẇ = W<sub>cycle</sub> N n/120 &nbsp;&nbsp; two-stroke: Ẇ = W<sub>cycle</sub> N n/60</div>
+        <h4>Actual engine</h4>
+        <div class="eqn">η<sub>th</sub> = W<sub>net</sub>/Q<sub>in</sub> = Ẇ<sub>out</sub>/(ṁ<sub>f</sub> CV) &nbsp;&nbsp; BSFC = ṁ<sub>f</sub>/Ẇ<sub>brake</sub></div>
+      </div>
+
+      <h2>2 · Otto cycle <span class="muted" style="font-size:16px;text-transform:none">spark ignition</span></h2>
+      <div class="card">
+        <h4><span class="pn">1–2</span>Isentropic compression</h4>
+        <div class="eqn">Q<sub>12</sub> = 0 &nbsp; T<sub>2</sub> = T<sub>1</sub>r<sup>k−1</sup> &nbsp; P<sub>2</sub> = P<sub>1</sub>r<sup>k</sup></div>
+        <h4><span class="pn">2–3</span>Constant-volume heat addition</h4>
+        <div class="eqn">V<sub>2</sub> = V<sub>3</sub> &nbsp; W<sub>23</sub> = 0 &nbsp; Q<sub>in</sub> = mc<sub>v</sub>(T<sub>3</sub> − T<sub>2</sub>)</div>
+        <h4><span class="pn">3–4</span>Isentropic expansion (power stroke)</h4>
+        <div class="eqn">Q<sub>34</sub> = 0 &nbsp; T<sub>4</sub> = T<sub>3</sub>/r<sup>k−1</sup> &nbsp; P<sub>4</sub> = P<sub>3</sub>/r<sup>k</sup></div>
+        <h4><span class="pn">4–1</span>Constant-volume heat rejection</h4>
+        <div class="eqn">V<sub>4</sub> = V<sub>1</sub> &nbsp; Q<sub>out</sub> = mc<sub>v</sub>(T<sub>4</sub> − T<sub>1</sub>)</div>
+      </div>
+      <div class="card">
+        <div class="eqn key">r = V<sub>1</sub>/V<sub>2</sub> = V<sub>4</sub>/V<sub>3</sub></div>
+        <div class="eqn">w<sub>net</sub> = q<sub>in</sub> − q<sub>out</sub> = c<sub>v</sub>[(T<sub>3</sub> − T<sub>2</sub>) − (T<sub>4</sub> − T<sub>1</sub>)]</div>
+        <div class="eqn">η = 1 − Q<sub>out</sub>/Q<sub>in</sub> = 1 − (T<sub>4</sub> − T<sub>1</sub>)/(T<sub>3</sub> − T<sub>2</sub>)</div>
+        <div class="eqn key">η<sub>Otto</sub> = 1 − 1/r<sup>k−1</sup></div>
+        <p>Efficiency depends only on r and k. Raising the compression ratio raises the ideal efficiency.</p>
+      </div>
+
+      <h2>3 · Diesel cycle <span class="muted" style="font-size:16px;text-transform:none">compression ignition</span></h2>
+      <div class="card">
+        <h4><span class="pn">1–2</span>Isentropic compression</h4>
+        <div class="eqn">T<sub>2</sub> = T<sub>1</sub>r<sup>k−1</sup> &nbsp; P<sub>2</sub> = P<sub>1</sub>r<sup>k</sup></div>
+        <h4><span class="pn">2–3</span>Constant-pressure heat addition</h4>
+        <div class="eqn">P<sub>2</sub> = P<sub>3</sub> &nbsp; Q<sub>in</sub> = mc<sub>p</sub>(T<sub>3</sub> − T<sub>2</sub>) &nbsp; T<sub>3</sub>/T<sub>2</sub> = V<sub>3</sub>/V<sub>2</sub></div>
+        <h4><span class="pn">3–4</span>Isentropic expansion</h4>
+        <div class="eqn">T<sub>4</sub> = T<sub>3</sub>(r<sub>c</sub>/r)<sup>k−1</sup> &nbsp; P<sub>4</sub> = P<sub>3</sub>(r<sub>c</sub>/r)<sup>k</sup></div>
+        <h4><span class="pn">4–1</span>Constant-volume heat rejection</h4>
+        <div class="eqn">V<sub>4</sub> = V<sub>1</sub> &nbsp; Q<sub>out</sub> = mc<sub>v</sub>(T<sub>4</sub> − T<sub>1</sub>)</div>
+      </div>
+      <div class="card">
+        <div class="eqn key">r = V<sub>1</sub>/V<sub>2</sub> &nbsp;&nbsp; r<sub>c</sub> = V<sub>3</sub>/V<sub>2</sub> = T<sub>3</sub>/T<sub>2</sub></div>
+        <div class="eqn">q<sub>in</sub> = c<sub>p</sub>(T<sub>3</sub> − T<sub>2</sub>) = c<sub>p</sub>T<sub>2</sub>(r<sub>c</sub> − 1) &nbsp; V<sub>4</sub>/V<sub>3</sub> = r/r<sub>c</sub></div>
+        <div class="eqn">w<sub>net</sub> = c<sub>p</sub>(T<sub>3</sub> − T<sub>2</sub>) − c<sub>v</sub>(T<sub>4</sub> − T<sub>1</sub>)</div>
+        <div class="eqn">η = 1 − c<sub>v</sub>(T<sub>4</sub> − T<sub>1</sub>)/[c<sub>p</sub>(T<sub>3</sub> − T<sub>2</sub>)]</div>
+        <div class="eqn key">η<sub>Diesel</sub> = 1 − (1/r<sup>k−1</sup>) · (r<sub>c</sub><sup>k</sup> − 1)/[k(r<sub>c</sub> − 1)]</div>
+        <p>At the same r, the ideal Otto cycle is more efficient than the Diesel cycle whenever r<sub>c</sub> &gt; 1.</p>
+      </div>
+
+      <h2>4 · Otto vs Diesel</h2>
+      <div class="card" style="grid-column:1/-1">
+        <div class="tablewrap"><table class="sym" style="min-width:520px">
+          <tr><th>Property</th><th>Otto</th><th>Diesel</th></tr>
+          <tr><td style="font-family:var(--f-body)">Heat addition</td><td>Constant volume</td><td>Constant pressure</td></tr>
+          <tr><td style="font-family:var(--f-body)">Heat rejection</td><td>Constant volume</td><td>Constant volume</td></tr>
+          <tr><td style="font-family:var(--f-body)">Compression / expansion</td><td>Isentropic</td><td>Isentropic</td></tr>
+          <tr><td style="font-family:var(--f-body)">Main ratios</td><td>r</td><td>r, r<sub>c</sub></td></tr>
+          <tr><td style="font-family:var(--f-body)">Heat supplied</td><td>mc<sub>v</sub>(T<sub>3</sub> − T<sub>2</sub>)</td><td>mc<sub>p</sub>(T<sub>3</sub> − T<sub>2</sub>)</td></tr>
+          <tr><td style="font-family:var(--f-body)">Heat rejected</td><td>mc<sub>v</sub>(T<sub>4</sub> − T<sub>1</sub>)</td><td>mc<sub>v</sub>(T<sub>4</sub> − T<sub>1</sub>)</td></tr>
+          <tr><td style="font-family:var(--f-body)">Ideal efficiency</td><td>1 − 1/r<sup>k−1</sup></td><td>1 − (1/r<sup>k−1</sup>)(r<sub>c</sub><sup>k</sup> − 1)/[k(r<sub>c</sub> − 1)]</td></tr>
+        </table></div>
+      </div>
+      <div class="tip"><b>Exam tip.</b> Convert temperatures to kelvin, use absolute pressure, identify the process before choosing the equation, and use k = 1.4 only when the problem assumes air with constant specific heats.</div>
+    </div>
+  </section>
+</div>
+
+<script>
+/* ===================== ENGINE (pure, no DOM) ===================== */
+const pw = Math.pow;
+const sub = (a,b)=>`${a}<sub>${b}</sub>`;
+// rule: out, inputs, fn, formula html, equation id, mode filter
+const R_ = (o,i,f,t,e,c)=>({o,i,f,t,e:e||o,c});
+
+function etaDiesel(r,rc,k){ const f = Math.abs(rc-1)<1e-9 ? 1 : (pw(rc,k)-1)/(k*(rc-1)); return 1 - f/pw(r,k-1); }
+function rcFromEta(e,r,k){
+  let lo=1+1e-9, hi=Math.max(r,2)*10;
+  if(etaDiesel(r,lo,k)<e || etaDiesel(r,hi,k)>e) return NaN;
+  for(let i=0;i<80;i++){ const m=(lo+hi)/2; if(etaDiesel(r,m,k)>e) lo=m; else hi=m; }
+  return (lo+hi)/2;
+}
+function idealGas(n,c){ // Pv = RT for state n
+  const P='P'+n,T='T'+n,v='v'+n, L=`P${n}v${n}=RT${n}`;
+  return [
+    R_(v,[P,T,'R'],(P,T,R)=>R*T/P, `${sub('v',n)} = R${sub('T',n)} / ${sub('P',n)}`, L, c),
+    R_(P,[v,T,'R'],(v,T,R)=>R*T/v, `${sub('P',n)} = R${sub('T',n)} / ${sub('v',n)}`, L, c),
+    R_(T,[P,v,'R'],(P,v,R)=>P*v/R, `${sub('T',n)} = ${sub('P',n)}${sub('v',n)} / R`, L, c),
+  ];
+}
+const O='otto', D='diesel';
+const CYCLE_RULES = [
+  // compression ratio from volumes
+  R_('r',['v1','v2'],(a,b)=>a/b,`r = ${sub('v',1)}/${sub('v',2)}`,'r=v1/v2'),
+  R_('r',['V1','V2'],(a,b)=>a/b,`r = ${sub('V',1)}/${sub('V',2)}`,'r=V1/V2'),
+  // ideal efficiency
+  R_('eta',['r','k'],(r,k)=>1-1/pw(r,k-1),`η = 1 − 1/r<sup>k−1</sup>`,'etaO',O),
+  R_('r',['eta','k'],(e,k)=>pw(1/(1-e),1/(k-1)),`r = [1/(1 − η)]<sup>1/(k−1)</sup>`,'etaO',O),
+  R_('eta',['r','rc','k'],etaDiesel,`η = 1 − (1/r<sup>k−1</sup>)·(${sub('r','c')}<sup>k</sup> − 1)/[k(${sub('r','c')} − 1)]`,'etaD',D),
+  // 1-2 isentropic compression
+  R_('T2',['T1','r','k'],(T,r,k)=>T*pw(r,k-1),`${sub('T',2)} = ${sub('T',1)} r<sup>k−1</sup>`,'T12'),
+  R_('P2',['P1','r','k'],(P,r,k)=>P*pw(r,k),`${sub('P',2)} = ${sub('P',1)} r<sup>k</sup>`,'P12'),
+  R_('T1',['T2','r','k'],(T,r,k)=>T/pw(r,k-1),`${sub('T',1)} = ${sub('T',2)} / r<sup>k−1</sup>`,'T12'),
+  R_('P1',['P2','r','k'],(P,r,k)=>P/pw(r,k),`${sub('P',1)} = ${sub('P',2)} / r<sup>k</sup>`,'P12'),
+  R_('r',['T2','T1','k'],(a,b,k)=>pw(a/b,1/(k-1)),`r = (${sub('T',2)}/${sub('T',1)})<sup>1/(k−1)</sup>`,'T12'),
+  R_('r',['P2','P1','k'],(a,b,k)=>pw(a/b,1/k),`r = (${sub('P',2)}/${sub('P',1)})<sup>1/k</sup>`,'P12'),
+  R_('v2',['v1','r'],(v,r)=>v/r,`${sub('v',2)} = ${sub('v',1)} / r`,'r=v1/v2'),
+  R_('v1',['v2','r'],(v,r)=>v*r,`${sub('v',1)} = r ${sub('v',2)}`,'r=v1/v2'),
+  // Otto 2-3 constant volume
+  R_('v3',['v2'],v=>v,`${sub('v',3)} = ${sub('v',2)}`,'v23',O),
+  R_('v2',['v3'],v=>v,`${sub('v',2)} = ${sub('v',3)}`,'v23',O),
+  R_('T3',['T2','qin','cv'],(T,q,c)=>T+q/c,`${sub('T',3)} = ${sub('T',2)} + ${sub('q','in')}/${sub('c','v')}`,'qinO',O),
+  R_('qin',['cv','T3','T2'],(c,a,b)=>c*(a-b),`${sub('q','in')} = ${sub('c','v')}(${sub('T',3)} − ${sub('T',2)})`,'qinO',O),
+  R_('T2',['T3','qin','cv'],(T,q,c)=>T-q/c,`${sub('T',2)} = ${sub('T',3)} − ${sub('q','in')}/${sub('c','v')}`,'qinO',O),
+  R_('T3',['T2','P3','P2'],(T,a,b)=>T*a/b,`${sub('T',3)} = ${sub('T',2)} ${sub('P',3)}/${sub('P',2)}`,'cv23',O),
+  R_('P3',['P2','T3','T2'],(P,a,b)=>P*a/b,`${sub('P',3)} = ${sub('P',2)} ${sub('T',3)}/${sub('T',2)}`,'cv23',O),
+  R_('T2',['T3','P2','P3'],(T,a,b)=>T*a/b,`${sub('T',2)} = ${sub('T',3)} ${sub('P',2)}/${sub('P',3)}`,'cv23',O),
+  R_('P2',['P3','T2','T3'],(P,a,b)=>P*a/b,`${sub('P',2)} = ${sub('P',3)} ${sub('T',2)}/${sub('T',3)}`,'cv23',O),
+  // Otto 3-4 isentropic expansion
+  R_('T4',['T3','r','k'],(T,r,k)=>T/pw(r,k-1),`${sub('T',4)} = ${sub('T',3)} / r<sup>k−1</sup>`,'T34O',O),
+  R_('P4',['P3','r','k'],(P,r,k)=>P/pw(r,k),`${sub('P',4)} = ${sub('P',3)} / r<sup>k</sup>`,'P34O',O),
+  R_('T3',['T4','r','k'],(T,r,k)=>T*pw(r,k-1),`${sub('T',3)} = ${sub('T',4)} r<sup>k−1</sup>`,'T34O',O),
+  R_('P3',['P4','r','k'],(P,r,k)=>P*pw(r,k),`${sub('P',3)} = ${sub('P',4)} r<sup>k</sup>`,'P34O',O),
+  R_('r',['T3','T4','k'],(a,b,k)=>pw(a/b,1/(k-1)),`r = (${sub('T',3)}/${sub('T',4)})<sup>1/(k−1)</sup>`,'T34O',O),
+  // Diesel 2-3 constant pressure
+  R_('P3',['P2'],P=>P,`${sub('P',3)} = ${sub('P',2)}`,'p23',D),
+  R_('P2',['P3'],P=>P,`${sub('P',2)} = ${sub('P',3)}`,'p23',D),
+  R_('T3',['T2','rc'],(T,rc)=>T*rc,`${sub('T',3)} = ${sub('r','c')} ${sub('T',2)}`,'rcT',D),
+  R_('T3',['T2','qin','cp'],(T,q,c)=>T+q/c,`${sub('T',3)} = ${sub('T',2)} + ${sub('q','in')}/${sub('c','p')}`,'qinD',D),
+  R_('rc',['T3','T2'],(a,b)=>a/b,`${sub('r','c')} = ${sub('T',3)}/${sub('T',2)}`,'rcT',D),
+  R_('qin',['cp','T3','T2'],(c,a,b)=>c*(a-b),`${sub('q','in')} = ${sub('c','p')}(${sub('T',3)} − ${sub('T',2)})`,'qinD',D),
+  R_('T2',['T3','rc'],(T,rc)=>T/rc,`${sub('T',2)} = ${sub('T',3)}/${sub('r','c')}`,'rcT',D),
+  R_('T2',['T3','qin','cp'],(T,q,c)=>T-q/c,`${sub('T',2)} = ${sub('T',3)} − ${sub('q','in')}/${sub('c','p')}`,'qinD',D),
+  R_('v3',['v2','rc'],(v,rc)=>v*rc,`${sub('v',3)} = ${sub('r','c')} ${sub('v',2)}`,'rcv',D),
+  R_('rc',['v3','v2'],(a,b)=>a/b,`${sub('r','c')} = ${sub('v',3)}/${sub('v',2)}`,'rcv',D),
+  R_('v2',['v3','rc'],(v,rc)=>v/rc,`${sub('v',2)} = ${sub('v',3)}/${sub('r','c')}`,'rcv',D),
+  // Diesel 3-4 isentropic expansion
+  R_('T4',['T3','rc','r','k'],(T,rc,r,k)=>T*pw(rc/r,k-1),`${sub('T',4)} = ${sub('T',3)} (${sub('r','c')}/r)<sup>k−1</sup>`,'T34D',D),
+  R_('P4',['P3','rc','r','k'],(P,rc,r,k)=>P*pw(rc/r,k),`${sub('P',4)} = ${sub('P',3)} (${sub('r','c')}/r)<sup>k</sup>`,'P34D',D),
+  R_('T3',['T4','rc','r','k'],(T,rc,r,k)=>T*pw(r/rc,k-1),`${sub('T',3)} = ${sub('T',4)} (r/${sub('r','c')})<sup>k−1</sup>`,'T34D',D),
+  R_('P3',['P4','rc','r','k'],(P,rc,r,k)=>P*pw(r/rc,k),`${sub('P',3)} = ${sub('P',4)} (r/${sub('r','c')})<sup>k</sup>`,'P34D',D),
+  R_('rc',['T4','T3','r','k'],(a,b,r,k)=>r*pw(a/b,1/(k-1)),`${sub('r','c')} = r (${sub('T',4)}/${sub('T',3)})<sup>1/(k−1)</sup>`,'T34D',D),
+  R_('r',['eta','rc','k'],(e,rc,k)=>{const f=Math.abs(rc-1)<1e-9?1:(pw(rc,k)-1)/(k*(rc-1)); return pw(f/(1-e),1/(k-1));},`r = [(${sub('r','c')}<sup>k</sup> − 1)/(k(${sub('r','c')} − 1)(1 − η))]<sup>1/(k−1)</sup>`,'etaD',D),
+  R_('rc',['eta','r','k'],rcFromEta,`${sub('r','c')} solved numerically from η<sub>Diesel</sub>(r, ${sub('r','c')})`,'etaD',D),
+  // 4-1 constant volume
+  R_('v4',['v1'],v=>v,`${sub('v',4)} = ${sub('v',1)}`,'v41'),
+  R_('v1',['v4'],v=>v,`${sub('v',1)} = ${sub('v',4)}`,'v41'),
+  R_('qout',['cv','T4','T1'],(c,a,b)=>c*(a-b),`${sub('q','out')} = ${sub('c','v')}(${sub('T',4)} − ${sub('T',1)})`,'qout'),
+  R_('T4',['T1','qout','cv'],(T,q,c)=>T+q/c,`${sub('T',4)} = ${sub('T',1)} + ${sub('q','out')}/${sub('c','v')}`,'qout'),
+  R_('T1',['T4','qout','cv'],(T,q,c)=>T-q/c,`${sub('T',1)} = ${sub('T',4)} − ${sub('q','out')}/${sub('c','v')}`,'qout'),
+  R_('P4',['P1','T4','T1'],(P,a,b)=>P*a/b,`${sub('P',4)} = ${sub('P',1)} ${sub('T',4)}/${sub('T',1)}`,'cv41'),
+  R_('T4',['T1','P4','P1'],(T,a,b)=>T*a/b,`${sub('T',4)} = ${sub('T',1)} ${sub('P',4)}/${sub('P',1)}`,'cv41'),
+  R_('T1',['T4','P1','P4'],(T,a,b)=>T*a/b,`${sub('T',1)} = ${sub('T',4)} ${sub('P',1)}/${sub('P',4)}`,'cv41'),
+  R_('P1',['P4','T1','T4'],(P,a,b)=>P*a/b,`${sub('P',1)} = ${sub('P',4)} ${sub('T',1)}/${sub('T',4)}`,'cv41'),
+  // net work & efficiency
+  R_('wnet',['qin','qout'],(a,b)=>a-b,`${sub('w','net')} = ${sub('q','in')} − ${sub('q','out')}`,'wnet'),
+  R_('eta',['wnet','qin'],(w,q)=>w/q,`η = ${sub('w','net')}/${sub('q','in')}`,'eta=w/q'),
+  R_('wnet',['eta','qin'],(e,q)=>e*q,`${sub('w','net')} = η ${sub('q','in')}`,'eta=w/q'),
+  R_('qin',['wnet','eta'],(w,e)=>w/e,`${sub('q','in')} = ${sub('w','net')}/η`,'eta=w/q'),
+  R_('qin',['qout','eta'],(q,e)=>q/(1-e),`${sub('q','in')} = ${sub('q','out')}/(1 − η)`,'eta=1-qo/qi'),
+  R_('qout',['qin','wnet'],(a,b)=>a-b,`${sub('q','out')} = ${sub('q','in')} − ${sub('w','net')}`,'wnet'),
+  R_('qin',['wnet','qout'],(a,b)=>a+b,`${sub('q','in')} = ${sub('w','net')} + ${sub('q','out')}`,'wnet'),
+  // ideal gas at each state
+  ...idealGas(1),...idealGas(2),...idealGas(3),...idealGas(4),
+  // MEP
+  R_('mep',['wnet','v1','v2'],(w,a,b)=>w/(a-b),`MEP = ${sub('w','net')}/(${sub('v',1)} − ${sub('v',2)})`,'mep'),
+  R_('wnet',['mep','v1','v2'],(p,a,b)=>p*(a-b),`${sub('w','net')} = MEP (${sub('v',1)} − ${sub('v',2)})`,'mep'),
+  // cylinder geometry & mass
+  R_('V1',['Vd','r'],(V,r)=>V*r/(r-1),`${sub('V',1)} = ${sub('V','d')} r/(r − 1)`,'Vd-r'),
+  R_('V2',['V1','r'],(V,r)=>V/r,`${sub('V',2)} = ${sub('V',1)}/r`,'r=V1/V2'),
+  R_('V1',['V2','r'],(V,r)=>V*r,`${sub('V',1)} = r ${sub('V',2)}`,'r=V1/V2'),
+  R_('Vd',['V1','V2'],(a,b)=>a-b,`${sub('V','d')} = ${sub('V',1)} − ${sub('V',2)}`,'Vd'),
+  R_('V1',['Vd','V2'],(a,b)=>a+b,`${sub('V',1)} = ${sub('V','d')} + ${sub('V',2)}`,'Vd'),
+  R_('V2',['V1','Vd'],(a,b)=>a-b,`${sub('V',2)} = ${sub('V',1)} − ${sub('V','d')}`,'Vd'),
+  R_('m',['P1','V1','R','T1'],(P,V,R,T)=>P*V/(R*T),`m = ${sub('P',1)}${sub('V',1)}/(R${sub('T',1)})`,'mass'),
+  R_('V1',['m','v1'],(m,v)=>m*v,`${sub('V',1)} = m ${sub('v',1)}`,'mv1'),
+  R_('v1',['V1','m'],(V,m)=>V/m,`${sub('v',1)} = ${sub('V',1)}/m`,'mv1'),
+  R_('Qin',['m','qin'],(m,q)=>m*q,`${sub('Q','in')} = m ${sub('q','in')}`,'Qin'),
+  R_('qin',['Qin','m'],(Q,m)=>Q/m,`${sub('q','in')} = ${sub('Q','in')}/m`,'Qin'),
+  R_('Qout',['m','qout'],(m,q)=>m*q,`${sub('Q','out')} = m ${sub('q','out')}`,'Qout'),
+  R_('qout',['Qout','m'],(Q,m)=>Q/m,`${sub('q','out')} = ${sub('Q','out')}/m`,'Qout'),
+  R_('Wnet',['m','wnet'],(m,w)=>m*w,`${sub('W','net')} = m ${sub('w','net')}`,'Wnet'),
+  R_('wnet',['Wnet','m'],(W,m)=>W/m,`${sub('w','net')} = ${sub('W','net')}/m`,'Wnet'),
+  R_('m',['Wnet','wnet'],(W,w)=>W/w,`m = ${sub('W','net')}/${sub('w','net')}`,'Wnet'),
+  R_('Wnet',['Qin','Qout'],(a,b)=>a-b,`${sub('W','net')} = ${sub('Q','in')} − ${sub('Q','out')}`,'Wtot'),
+  R_('Wnet',['mep','Vd'],(p,V)=>p*V,`${sub('W','net')} = MEP · ${sub('V','d')}`,'mepV'),
+  R_('mep',['Wnet','Vd'],(W,V)=>W/V,`MEP = ${sub('W','net')}/${sub('V','d')}`,'mepV'),
+  R_('Vd',['Wnet','mep'],(W,p)=>W/p,`${sub('V','d')} = ${sub('W','net')}/MEP`,'mepV'),
+  // power
+  R_('power',['Wnet','N','n','x'],(W,N,n,x)=>W*N*n/(60*x),x=>`Ẇ = ${sub('W','net')} N n / ${60*x}`,'power'),
+  R_('Wnet',['power','N','n','x'],(P,N,n,x)=>P*60*x/(N*n),x=>`${sub('W','net')} = ${60*x} Ẇ/(N n)`,'power'),
+  R_('n',['power','Wnet','N','x'],(P,W,N,x)=>P*60*x/(N*W),x=>`n = ${60*x} Ẇ/(N ${sub('W','net')})`,'power'),
+];
+
+const PROC_RULES = [
+  ...idealGas(1),...idealGas(2),
+  R_('r',['v1','v2'],(a,b)=>a/b,`r = ${sub('v',1)}/${sub('v',2)}`,'r=v'),
+  R_('r',['V1','V2'],(a,b)=>a/b,`r = ${sub('V',1)}/${sub('V',2)}`,'r=V'),
+  // isentropic
+  R_('T2',['T1','r','k'],(T,r,k)=>T*pw(r,k-1),`${sub('T',2)} = ${sub('T',1)} (${sub('V',1)}/${sub('V',2)})<sup>k−1</sup>`,'sT','s'),
+  R_('P2',['P1','r','k'],(P,r,k)=>P*pw(r,k),`${sub('P',2)} = ${sub('P',1)} (${sub('V',1)}/${sub('V',2)})<sup>k</sup>`,'sP','s'),
+  R_('T1',['T2','r','k'],(T,r,k)=>T/pw(r,k-1),`${sub('T',1)} = ${sub('T',2)} / (${sub('V',1)}/${sub('V',2)})<sup>k−1</sup>`,'sT','s'),
+  R_('P1',['P2','r','k'],(P,r,k)=>P/pw(r,k),`${sub('P',1)} = ${sub('P',2)} / (${sub('V',1)}/${sub('V',2)})<sup>k</sup>`,'sP','s'),
+  R_('r',['T2','T1','k'],(a,b,k)=>pw(a/b,1/(k-1)),`${sub('V',1)}/${sub('V',2)} = (${sub('T',2)}/${sub('T',1)})<sup>1/(k−1)</sup>`,'sT','s'),
+  R_('r',['P2','P1','k'],(a,b,k)=>pw(a/b,1/k),`${sub('V',1)}/${sub('V',2)} = (${sub('P',2)}/${sub('P',1)})<sup>1/k</sup>`,'sP','s'),
+  R_('T2',['T1','P2','P1','k'],(T,a,b,k)=>T*pw(a/b,(k-1)/k),`${sub('T',2)} = ${sub('T',1)} (${sub('P',2)}/${sub('P',1)})<sup>(k−1)/k</sup>`,'sTP','s'),
+  R_('P2',['P1','T2','T1','k'],(P,a,b,k)=>P*pw(a/b,k/(k-1)),`${sub('P',2)} = ${sub('P',1)} (${sub('T',2)}/${sub('T',1)})<sup>k/(k−1)</sup>`,'sTP','s'),
+  R_('q',[],()=>0,`q = 0 (adiabatic)`,'sq','s'),
+  R_('w',['cv','T1','T2'],(c,a,b)=>c*(a-b),`w = ${sub('c','v')}(${sub('T',1)} − ${sub('T',2)})`,'sw','s'),
+  R_('T2',['T1','w','cv'],(T,w,c)=>T-w/c,`${sub('T',2)} = ${sub('T',1)} − w/${sub('c','v')}`,'sw','s'),
+  // constant volume
+  R_('v2',['v1'],v=>v,`${sub('v',2)} = ${sub('v',1)}`,'vv','v'), R_('v1',['v2'],v=>v,`${sub('v',1)} = ${sub('v',2)}`,'vv','v'),
+  R_('V2',['V1'],v=>v,`${sub('V',2)} = ${sub('V',1)}`,'vV','v'), R_('V1',['V2'],v=>v,`${sub('V',1)} = ${sub('V',2)}`,'vV','v'),
+  R_('P2',['P1','T2','T1'],(P,a,b)=>P*a/b,`${sub('P',2)} = ${sub('P',1)} ${sub('T',2)}/${sub('T',1)}`,'vPT','v'),
+  R_('T2',['T1','P2','P1'],(T,a,b)=>T*a/b,`${sub('T',2)} = ${sub('T',1)} ${sub('P',2)}/${sub('P',1)}`,'vPT','v'),
+  R_('P1',['P2','T1','T2'],(P,a,b)=>P*a/b,`${sub('P',1)} = ${sub('P',2)} ${sub('T',1)}/${sub('T',2)}`,'vPT','v'),
+  R_('T1',['T2','P1','P2'],(T,a,b)=>T*a/b,`${sub('T',1)} = ${sub('T',2)} ${sub('P',1)}/${sub('P',2)}`,'vPT','v'),
+  R_('w',[],()=>0,`w = 0 (rigid volume)`,'vw','v'),
+  R_('q',['cv','T2','T1'],(c,a,b)=>c*(a-b),`q = Δu = ${sub('c','v')}(${sub('T',2)} − ${sub('T',1)})`,'vq','v'),
+  R_('T2',['T1','q','cv'],(T,q,c)=>T+q/c,`${sub('T',2)} = ${sub('T',1)} + q/${sub('c','v')}`,'vq','v'),
+  R_('T1',['T2','q','cv'],(T,q,c)=>T-q/c,`${sub('T',1)} = ${sub('T',2)} − q/${sub('c','v')}`,'vq','v'),
+  // constant pressure
+  R_('P2',['P1'],P=>P,`${sub('P',2)} = ${sub('P',1)}`,'pp','p'), R_('P1',['P2'],P=>P,`${sub('P',1)} = ${sub('P',2)}`,'pp','p'),
+  R_('v2',['v1','T2','T1'],(v,a,b)=>v*a/b,`${sub('v',2)} = ${sub('v',1)} ${sub('T',2)}/${sub('T',1)}`,'pvT','p'),
+  R_('T2',['T1','v2','v1'],(T,a,b)=>T*a/b,`${sub('T',2)} = ${sub('T',1)} ${sub('v',2)}/${sub('v',1)}`,'pvT','p'),
+  R_('V2',['V1','T2','T1'],(v,a,b)=>v*a/b,`${sub('V',2)} = ${sub('V',1)} ${sub('T',2)}/${sub('T',1)}`,'pVT','p'),
+  R_('T2',['T1','V2','V1'],(T,a,b)=>T*a/b,`${sub('T',2)} = ${sub('T',1)} ${sub('V',2)}/${sub('V',1)}`,'pVT','p'),
+  R_('T1',['T2','V1','V2'],(T,a,b)=>T*a/b,`${sub('T',1)} = ${sub('T',2)} ${sub('V',1)}/${sub('V',2)}`,'pVT','p'),
+  R_('w',['P1','v2','v1'],(P,a,b)=>P*(a-b),`w = P(${sub('v',2)} − ${sub('v',1)})`,'pw','p'),
+  R_('W',['P1','V2','V1'],(P,a,b)=>P*(a-b),`W = P(${sub('V',2)} − ${sub('V',1)})`,'pW','p'),
+  R_('q',['cp','T2','T1'],(c,a,b)=>c*(a-b),`q = ${sub('c','p')}(${sub('T',2)} − ${sub('T',1)})`,'pq','p'),
+  R_('T2',['T1','q','cp'],(T,q,c)=>T+q/c,`${sub('T',2)} = ${sub('T',1)} + q/${sub('c','p')}`,'pq','p'),
+  R_('T1',['T2','q','cp'],(T,q,c)=>T-q/c,`${sub('T',1)} = ${sub('T',2)} − q/${sub('c','p')}`,'pq','p'),
+  // any two states, combined gas law
+  R_('P2',['P1','V1','T2','T1','V2'],(P1,V1,T2,T1,V2)=>P1*V1*T2/(T1*V2),`${sub('P',2)} = ${sub('P',1)}${sub('V',1)}${sub('T',2)}/(${sub('T',1)}${sub('V',2)})`,'gas','g'),
+  R_('V2',['P1','V1','T2','T1','P2'],(P1,V1,T2,T1,P2)=>P1*V1*T2/(T1*P2),`${sub('V',2)} = ${sub('P',1)}${sub('V',1)}${sub('T',2)}/(${sub('T',1)}${sub('P',2)})`,'gas','g'),
+  R_('T2',['T1','P2','V2','P1','V1'],(T1,P2,V2,P1,V1)=>T1*P2*V2/(P1*V1),`${sub('T',2)} = ${sub('T',1)}${sub('P',2)}${sub('V',2)}/(${sub('P',1)}${sub('V',1)})`,'gas','g'),
+  R_('P1',['P2','V2','T1','T2','V1'],(P2,V2,T1,T2,V1)=>P2*V2*T1/(T2*V1),`${sub('P',1)} = ${sub('P',2)}${sub('V',2)}${sub('T',1)}/(${sub('T',2)}${sub('V',1)})`,'gas','g'),
+  R_('V1',['P2','V2','T1','T2','P1'],(P2,V2,T1,T2,P1)=>P2*V2*T1/(T2*P1),`${sub('V',1)} = ${sub('P',2)}${sub('V',2)}${sub('T',1)}/(${sub('T',2)}${sub('P',1)})`,'gas','g'),
+  R_('T1',['T2','P1','V1','P2','V2'],(T2,P1,V1,P2,V2)=>T2*P1*V1/(P2*V2),`${sub('T',1)} = ${sub('T',2)}${sub('P',1)}${sub('V',1)}/(${sub('P',2)}${sub('V',2)})`,'gas','g'),
+  // geometry/mass (all processes)
+  R_('v2',['v1','r'],(v,r)=>v/r,`${sub('v',2)} = ${sub('v',1)}/r`,'r=v'), R_('v1',['v2','r'],(v,r)=>v*r,`${sub('v',1)} = r ${sub('v',2)}`,'r=v'),
+  R_('V2',['V1','r'],(v,r)=>v/r,`${sub('V',2)} = ${sub('V',1)}/r`,'r=V'), R_('V1',['V2','r'],(v,r)=>v*r,`${sub('V',1)} = r ${sub('V',2)}`,'r=V'),
+  R_('m',['P1','V1','R','T1'],(P,V,R,T)=>P*V/(R*T),`m = ${sub('P',1)}${sub('V',1)}/(R${sub('T',1)})`,'mass'),
+  R_('V1',['m','v1'],(m,v)=>m*v,`${sub('V',1)} = m ${sub('v',1)}`,'mv1'), R_('v1',['V1','m'],(V,m)=>V/m,`${sub('v',1)} = ${sub('V',1)}/m`,'mv1'),
+  R_('V2',['m','v2'],(m,v)=>m*v,`${sub('V',2)} = m ${sub('v',2)}`,'mv2'), R_('v2',['V2','m'],(V,m)=>V/m,`${sub('v',2)} = ${sub('V',2)}/m`,'mv2'),
+  R_('m',['V2','v2'],(V,v)=>V/v,`m = ${sub('V',2)}/${sub('v',2)}`,'mv2'),
+  R_('du',['cv','T2','T1'],(c,a,b)=>c*(a-b),`Δu = ${sub('c','v')}(${sub('T',2)} − ${sub('T',1)})`,'du'),
+  R_('dh',['cp','T2','T1'],(c,a,b)=>c*(a-b),`Δh = ${sub('c','p')}(${sub('T',2)} − ${sub('T',1)})`,'dh'),
+  R_('q',['Q','m'],(Q,m)=>Q/m,`q = Q/m`,'Q'), R_('Q',['m','q'],(m,q)=>m*q,`Q = m q`,'Q'),
+  R_('w',['W','m'],(W,m)=>W/m,`w = W/m`,'W'), R_('W',['m','w'],(m,w)=>m*w,`W = m w`,'W'),
+  R_('dU',['m','du'],(m,d)=>m*d,`ΔU = m Δu`,'dU'),
+];
+
+const FUEL_RULES = [
+  R_('power',['Wcyc','N','n','x'],(W,N,n,x)=>W*N*n/(60*x),x=>`Ẇ = ${sub('W','cycle')} N n / ${60*x}`,'pw'),
+  R_('Wcyc',['power','N','n','x'],(P,N,n,x)=>P*60*x/(N*n),x=>`${sub('W','cycle')} = ${60*x} Ẇ/(N n)`,'pw'),
+  R_('n',['power','Wcyc','N','x'],(P,W,N,x)=>P*60*x/(N*W),x=>`n = ${60*x} Ẇ/(N ${sub('W','cycle')})`,'pw'),
+  R_('Qf',['mf','CV'],(m,c)=>m*c/3600,`Q̇<sub>fuel</sub> = ṁ<sub>f</sub> CV <span class="muted">(ṁ<sub>f</sub> in kg/h ÷ 3600)</span>`,'Qf'),
+  R_('mf',['Qf','CV'],(Q,c)=>Q*3600/c,`ṁ<sub>f</sub> = 3600 Q̇<sub>fuel</sub>/CV`,'Qf'),
+  R_('CV',['Qf','mf'],(Q,m)=>Q*3600/m,`CV = 3600 Q̇<sub>fuel</sub>/ṁ<sub>f</sub>`,'Qf'),
+  R_('eta',['power','Qf'],(P,Q)=>P/Q,`η<sub>th</sub> = Ẇ/(ṁ<sub>f</sub> CV)`,'eta'),
+  R_('power',['eta','Qf'],(e,Q)=>e*Q,`Ẇ = η<sub>th</sub> ṁ<sub>f</sub> CV`,'eta'),
+  R_('Qf',['power','eta'],(P,e)=>P/e,`Q̇<sub>fuel</sub> = Ẇ/η<sub>th</sub>`,'eta'),
+  R_('bsfc',['mf','power'],(m,P)=>1000*m/P,`BSFC = ṁ<sub>f</sub>/Ẇ <span class="muted">(×1000 → g/kWh)</span>`,'bsfc'),
+  R_('mf',['bsfc','power'],(b,P)=>b*P/1000,`ṁ<sub>f</sub> = BSFC · Ẇ`,'bsfc'),
+  R_('power',['mf','bsfc'],(m,b)=>1000*m/b,`Ẇ = ṁ<sub>f</sub>/BSFC`,'bsfc'),
+];
+
+const SIGNED = new Set(['q','w','du','dh','Q','W','dU']);
+function valid(o,x){
+  if(!isFinite(x)) return false;
+  if(SIGNED.has(o)) return true;
+  if(x<=0) return false;
+  if(o==='eta') return x<1;
+  if(o==='rc') return x>1;
+  return true;
+}
+
+function solve(rules, given, defaults, ctx){
+  const val = Object.assign({}, defaults, given), how={}, steps=[];
+  for(const k in defaults) how[k]='default';
+  for(const k in given) how[k]='given';
+  const active = rules.filter(r=>!r.c || r.c===ctx.mode);
+  let changed=true, guard=0;
+  while(changed && guard++<100){
+    changed=false;
+    for(const ru of active){
+      if(val[ru.o]!==undefined) continue;
+      if(!ru.i.every(v=>val[v]!==undefined)) continue;
+      const x = ru.f(...ru.i.map(v=>val[v]));
+      if(!valid(ru.o,x)) continue;
+      val[ru.o]=x; how[ru.o]=steps.length;
+      steps.push({ru, x, ins: ru.i.map(v=>[v,val[v]])});
+      changed=true;
+      break; // restart from top so preferred formulas win
+    }
+  }
+  const conflicts=[], seen=new Set();
+  for(const ru of active){
+    if(given[ru.o]===undefined || seen.has(ru.e)) continue;
+    if(!ru.i.length || !ru.i.every(v=>val[v]!==undefined)) continue;
+    const x = ru.f(...ru.i.map(v=>val[v])), g=given[ru.o];
+    if(!isFinite(x)) continue;
+    if(Math.abs(x-g) > 0.006*Math.max(Math.abs(x),Math.abs(g)) + 1e-9){ seen.add(ru.e); conflicts.push({ru, v:ru.o, x, g}); }
+  }
+  return {val, how, steps, conflicts};
+}
+if(typeof module!=='undefined') module.exports={solve,CYCLE_RULES,PROC_RULES,FUEL_RULES,etaDiesel};
+</script>
+
+<script>
+/* ===================== UI ===================== */
+const U=(s,f,o,a)=>({s,f,o:o||0,a});
+const DIMS={
+  none:[U('',1,0,[''])],
+  temp:[U('K',1,0,['k']),U('°C',1,273.15,['c','°c','degc'])],
+  pres:[U('kPa',1,0,['kpa']),U('MPa',1000,0,['mpa']),U('bar',100,0,['bar']),U('Pa',.001,0,['pa']),U('atm',101.325,0,['atm'])],
+  vol:[U('m³',1,0,['m3','m³']),U('L',.001,0,['l','dm3']),U('cm³',1e-6,0,['cm3','cm³','cc','ml'])],
+  sv:[U('m³/kg',1,0,['m3/kg','m³/kg'])],
+  q:[U('kJ/kg',1,0,['kj/kg'])],
+  E:[U('kJ',1,0,['kj']),U('J',.001,0,['j'])],
+  pow:[U('kW',1,0,['kw']),U('hp',.7457,0,['hp']),U('W',.001,0,['w'])],
+  pct:[U('%',.01,0,['%'])],
+  rpm:[U('rpm',1,0,['rpm'])],
+  mass:[U('kg',1,0,['kg']),U('g',.001,0,['g'])],
+  cq:[U('kJ/kg·K',1,0,['kj/kgk'])],
+  kgph:[U('kg/h',1,0,['kg/h']),U('kg/s',3600,0,['kg/s']),U('g/s',3.6,0,['g/s'])],
+  CV:[U('kJ/kg',1,0,['kj/kg']),U('MJ/kg',1000,0,['mj/kg'])],
+  gkwh:[U('g/kWh',1,0,['g/kwh'])],
+};
+const CYCLE_UNITS=3; // how many units the chip cycles through
+const st=(n,ug)=>({lab:sub('T',n),dim:'temp',ug:'T'}), sp=n=>({lab:sub('P',n),dim:'pres',ug:'P'}), sv=n=>({lab:sub('v',n),dim:'sv',ug:'v'}), sV=n=>({lab:sub('V',n),dim:'vol',ug:'V'});
+const VARS={
+  gas:{
+    k:{lab:'k',desc:'c<sub>p</sub>/c<sub>v</sub>',dim:'none',def:1.4},
+    cp:{lab:sub('c','p'),desc:'',dim:'cq',def:1.005},
+    cv:{lab:sub('c','v'),desc:'',dim:'cq',def:0.718},
+    R:{lab:'R',desc:'',dim:'cq',def:0.287},
+  },
+  cycle:{
+    r:{lab:'r',desc:'compression ratio',dim:'none'},
+    rc:{lab:sub('r','c'),desc:'cut-off ratio',dim:'none',only:'diesel'},
+    eta:{lab:'η<sub>th</sub>',desc:'thermal efficiency',dim:'pct'},
+    mep:{lab:'MEP',desc:'mean effective pressure',dim:'pres',ug:'mep'},
+    qin:{lab:sub('q','in'),desc:'heat added',dim:'q'},
+    qout:{lab:sub('q','out'),desc:'heat rejected',dim:'q'},
+    wnet:{lab:sub('w','net'),desc:'net work',dim:'q'},
+    P1:sp(1),P2:sp(2),P3:sp(3),P4:sp(4),T1:st(1),T2:st(2),T3:st(3),T4:st(4),v1:sv(1),v2:sv(2),v3:sv(3),v4:sv(4),
+    Vd:{lab:sub('V','d'),desc:'displacement',dim:'vol',ug:'V'},
+    V1:{lab:sub('V',1),desc:'max volume (BDC)',dim:'vol',ug:'V'},
+    V2:{lab:sub('V',2),desc:'clearance (TDC)',dim:'vol',ug:'V'},
+    m:{lab:'m',desc:'air mass',dim:'mass'},
+    Qin:{lab:sub('Q','in'),desc:'heat in / cycle',dim:'E',ug:'E'},
+    Qout:{lab:sub('Q','out'),desc:'heat out / cycle',dim:'E',ug:'E'},
+    Wnet:{lab:sub('W','net'),desc:'work / cycle',dim:'E',ug:'E'},
+    N:{lab:'N',desc:'cylinders',dim:'none',def:1},
+    n:{lab:'n',desc:'engine speed',dim:'rpm'},
+    power:{lab:'Ẇ',desc:'power, all cylinders',dim:'pow'},
+  },
+  process:{
+    P1:sp(1),P2:sp(2),T1:st(1),T2:st(2),v1:sv(1),v2:sv(2),V1:sV(1),V2:sV(2),
+    r:{lab:`${sub('V',1)}/${sub('V',2)}`,desc:'volume ratio',dim:'none'},
+    m:{lab:'m',desc:'air mass',dim:'mass'},
+    q:{lab:'q',desc:'heat in',dim:'q'}, w:{lab:'w',desc:'work by gas',dim:'q'},
+    du:{lab:'Δu',desc:'internal energy',dim:'q'}, dh:{lab:'Δh',desc:'enthalpy',dim:'q'},
+    Q:{lab:'Q',desc:'heat in',dim:'E',ug:'E'}, W:{lab:'W',desc:'work by gas',dim:'E',ug:'E'}, dU:{lab:'ΔU',desc:'internal energy',dim:'E',ug:'E'},
+  },
+  fuel:{
+    Wcyc:{lab:sub('W','cycle'),desc:'work / cylinder / cycle',dim:'E'},
+    N:{lab:'N',desc:'cylinders',dim:'none',def:1},
+    n:{lab:'n',desc:'engine speed',dim:'rpm'},
+    power:{lab:'Ẇ',desc:'brake power',dim:'pow'},
+    mf:{lab:'ṁ<sub>f</sub>',desc:'fuel flow',dim:'kgph'},
+    CV:{lab:'CV',desc:'calorific value',dim:'CV'},
+    Qf:{lab:'Q̇<sub>fuel</sub>',desc:'fuel heat rate',dim:'pow',ug:'Qf'},
+    eta:{lab:'η<sub>th</sub>',desc:'thermal efficiency',dim:'pct'},
+    bsfc:{lab:'BSFC',desc:'specific fuel use',dim:'gkwh'},
+  },
+};
+const LABEL = {k:'k',cp:sub('c','p'),cv:sub('c','v'),R:'R',x:'rev/cycle'};
+const lab=(tab,v)=>(VARS[tab][v]||VARS.gas[v]||{}).lab||LABEL[v]||v;
+const dimOf=(tab,v)=>(VARS[tab][v]||VARS.gas[v]||{dim:'none'}).dim;
+const BASEU={none:'',temp:'K',pres:'kPa',vol:'m³',sv:'m³/kg',q:'kJ/kg',E:'kJ',pow:'kW',pct:'',rpm:'rpm',mass:'kg',cq:'kJ/kg·K',kgph:'kg/h',CV:'kJ/kg',gkwh:'g/kWh'};
+
+const EXAMPLES={
+  cycle:{
+    otto:{r:'8',P1:'100',T1:'300',qin:'800',Vd:'0.0004',N:'4',n:'3000'},
+    diesel:{r:'16.5',rc:'2',P1:'100',T1:'300',Vd:'0.0005',N:'4',n:'2000'},
+  },
+  process:{s:{P1:'100',T1:'300',r:'8',m:'0.002'},v:{P1:'100',T1:'300',q:'500'},p:{P1:'4000',T1:'900',T2:'1800'},g:{P1:'100',V1:'0.5',T1:'300',P2:'250',V2:'0.25'}},
+  fuel:{power:'75',mf:'18',CV:'43000'},
+};
+const PDESC={s:'Q = 0, PV<sup>k</sup> = const. Give state 1 and one of V₁/V₂, T₂ or P₂.',v:'V₂ = V₁, W = 0. Give state 1 and T₂, P₂ or q.',p:'P₂ = P₁. Give state 1 and T₂, v₂ or q.',g:'Combined gas law P₁V₁/T₁ = P₂V₂/T₂ for a fixed mass. Give any five.'};
+const PFORM={
+  s:['PV<sup>k</sup> = const, TV<sup>k−1</sup> = const, T<sup>k</sup>P<sup>1−k</sup> = const','T₂ = T₁(V₁/V₂)<sup>k−1</sup>,  P₂ = P₁(V₁/V₂)<sup>k</sup>','Q = 0,  W = mc<sub>v</sub>(T₁ − T₂)'],
+  v:['P₂/P₁ = T₂/T₁','W = 0,  Q = ΔU = mc<sub>v</sub>(T₂ − T₁)'],
+  p:['V₂/V₁ = T₂/T₁','W = P(V₂ − V₁),  Q = mc<sub>p</sub>(T₂ − T₁),  ΔU = mc<sub>v</sub>(T₂ − T₁)'],
+  g:['P₁V₁/T₁ = P₂V₂/T₂','Pv = RT,  PV = mRT'],
+};
+
+// ---- state
+const S={raw:{gas:{},cycle:{},process:{},fuel:{}},units:{},mode:'otto',pmode:'s',x:{cycle:2,fuel:2},tab:'solver'};
+const KEY='ice-cycle-solver-v1';
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null'); if(s&&s.raw) Object.assign(S,s,{tab:S.tab});}catch(e){}
+let firstVisit=false; try{ firstVisit = !localStorage.getItem(KEY);}catch(e){ firstVisit=true; }
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
+
+const ugOf=(tab,v)=>`${tab}:${(VARS[tab][v]||{}).ug||v}`;
+const unitOf=(tab,v)=>{const d=DIMS[dimOf(tab,v)]; return d[Math.min(S.units[ugOf(tab,v)]||0,d.length-1)];};
+const toBase=(x,u)=>x*u.f+u.o, fromBase=(x,u)=>(x-u.o)/u.f;
+
+function parseVal(str,tab,v){
+  const s=String(str).trim().replace(',', '.');
+  if(!s) return undefined;
+  const m=s.match(/^([-+]?(?:\d+\.?\d*|\.\d+)(?:e[-+]?\d+)?)\s*(.*)$/i);
+  if(!m) return NaN;
+  const num=parseFloat(m[1]); const suf=m[2].toLowerCase().replace(/\s+/g,'');
+  const dim=DIMS[dimOf(tab,v)];
+  let u=unitOf(tab,v);
+  if(suf){ u=dim.find(d=>d.a.includes(suf)); if(!u) return NaN; }
+  return toBase(num,u);
+}
+function fmt(x){
+  if(x===undefined||!isFinite(x)) return '—';
+  const a=Math.abs(x); if(a===0) return '0';
+  if(a>=1e7||a<1e-5) return x.toExponential(3).replace('e','e');
+  const d=Math.min(8,Math.max(0,3-Math.floor(Math.log10(a))));
+  return String(+x.toFixed(d));
+}
+const fmtU=(tab,v,x)=>fmt(fromBase(x,unitOf(tab,v)));
+function fmtBase(tab,v,x){ const d=dimOf(tab,v); if(d==='pct') return fmt(x*100)+' %'; const u=BASEU[d]; return fmt(x)+(u?' '+u:''); }
+
+// ---- build fields
+function chip(tab,v){
+  const d=DIMS[dimOf(tab,v)], u=unitOf(tab,v);
+  return d.length>1 ? `<button type="button" class="u" data-ug="${ugOf(tab,v)}" data-dim="${dimOf(tab,v)}" title="Switch unit">${u.s}</button>` : (u.s?`<span class="u">${u.s}</span>`:'');
+}
+function fieldHTML(tab,v){
+  const s=VARS[tab][v];
+  return `<div class="fld" data-var="${v}" ${s.only?`data-only="${s.only}"`:''}><label for="in-${tab}-${v}"><span class="sym">${s.lab}</span>${s.desc?`<span class="desc">${s.desc}</span>`:''}</label><div class="box"><input id="in-${tab}-${v}" data-tab="${tab}" data-var="${v}" inputmode="decimal" autocomplete="off" spellcheck="false">${chip(tab,v)}</div></div>`;
+}
+document.querySelectorAll('[data-vars]').forEach(el=>{
+  const tab=el.dataset.tab; el.innerHTML=el.dataset.vars.split(' ').map(v=>fieldHTML(tab,v)).join('');
+});
+const COLLAB={P:'P',T:'T',v:'v',V:'V'}, COLDESC={P:'pressure',T:'temperature',v:'specific vol.',V:'volume'};
+document.querySelectorAll('table.states').forEach(t=>{
+  const tab=t.dataset.tab, rows=t.dataset.rows.split(' '), cols=t.dataset.cols.split(' ');
+  let h='<thead><tr><th></th>'+cols.map(c=>`<th><span class="sym">${c}</span> ${chip(tab,c+rows[0])}</th>`).join('')+'</tr></thead><tbody>';
+  for(const r of rows) h+=`<tr><td>${r}</td>`+cols.map(c=>`<td><input id="in-${tab}-${c}${r}" data-tab="${tab}" data-var="${c}${r}" inputmode="decimal" autocomplete="off" spellcheck="false" aria-label="${COLDESC[c]} at state ${r}"></td>`).join('')+'</tr>';
+  t.innerHTML=h+'</tbody>';
+});
+const INPUTS={};
+document.querySelectorAll('input[data-var]').forEach(i=>{ (INPUTS[i.dataset.tab]??={})[i.dataset.var]=i; i.value=S.raw[i.dataset.tab][i.dataset.var]||''; });
+
+// ---- solving
+function gasDefaults(){
+  const d={}; for(const k in VARS.gas){ const p=parseVal(S.raw.gas[k]||'', 'gas', k); d[k]= (p!==undefined && isFinite(p) && p>0) ? p : VARS.gas[k].def; } return d;
+}
+function readGiven(tab){
+  const g={}, bad={};
+  for(const v in VARS[tab]){
+    if(VARS[tab][v].only && VARS[tab][v].only!==S.mode) continue;
+    const p=parseVal(S.raw[tab][v]||'',tab,v);
+    if(p===undefined) continue;
+    if(!isFinite(p) || (!SIGNED.has(v) && p<=0) || (v==='eta' && p>=1)) { bad[v]=true; continue; }
+    g[v]=p;
+  }
+  return {g,bad};
+}
+const RULES={cycle:CYCLE_RULES,process:PROC_RULES,fuel:FUEL_RULES};
+function run(tab){
+  const {g,bad}=readGiven(tab);
+  const defs=gasDefaults();
+  for(const v in VARS[tab]) if(VARS[tab][v].def!==undefined && g[v]===undefined) defs[v]=VARS[tab][v].def;
+  if(S.x[tab]) defs.x=S.x[tab];
+  const mode= tab==='cycle'?S.mode : tab==='process'?S.pmode : '';
+  const res=solve(RULES[tab],g,defs,{mode});
+  res.bad=bad; res.given=g; res.mode=mode;
+  renderFields(tab,res);
+  renderSteps(tab,res);
+  if(tab==='cycle') renderCycle(res);
+  else renderSimple(tab,res);
+  return res;
+}
+function renderFields(tab,res){
+  const conflictVars=new Set(res.conflicts.map(c=>c.v));
+  for(const v in INPUTS[tab]){
+    const el=INPUTS[tab][v], cell=el.closest('.fld')||el.closest('td'), spec=VARS[tab][v];
+    if(spec && spec.only) el.closest('.fld').hidden = spec.only!==S.mode;
+    const has=(S.raw[tab][v]||'').trim()!=='';
+    el.classList.toggle('given',has);
+    const calc=!has && res.how[v]!==undefined && res.how[v]!=='default';
+    el.classList.toggle('calc',calc);
+    el.placeholder = calc ? fmtU(tab,v,res.val[v]) : (spec&&spec.def!==undefined? String(spec.def) : '');
+    const isBad = res.bad[v] || conflictVars.has(v);
+    cell.classList.toggle('bad',!!isBad);
+    el.title = res.bad[v] ? 'Can’t read this value. Use a positive number, optionally followed by a unit.' : conflictVars.has(v) ? 'Conflicts with your other inputs (see the warning on the right).' : calc ? 'Calculated' : '';
+  }
+  if(INPUTS.gas) for(const v in INPUTS.gas){ const el=INPUTS.gas[v]; el.placeholder=String(VARS.gas[v].def); el.classList.toggle('given',!!(S.raw.gas[v]||'').trim()); }
+}
+function renderSteps(tab,res){
+  const ol=document.getElementById('steps-'+tab);
+  if(!res.steps.length){ ol.innerHTML='<li><span class="eq muted">Nothing to solve yet. Values you can derive from your inputs will appear here, one formula at a time.</span></li>'; return; }
+  ol.innerHTML=res.steps.map(s=>{
+    const t= typeof s.ru.t==='function' ? s.ru.t(S.x[tab]) : s.ru.t;
+    const w= s.ins.length ? 'with '+s.ins.map(([v,x])=>`${lab(tab,v)} = ${v==='x'?x:fmtBase(tab,v,x)}`).join(', ') : '';
+    return `<li><span class="eq">${t}</span>${w?`<span class="with">${w}</span>`:''}<span class="res">${lab(tab,s.ru.o)} = ${fmtBase(tab,s.ru.o,s.x)}</span></li>`;
+  }).join('');
+}
+function warnHTML(res,tab,extra){
+  const out=(extra||[]).slice();
+  for(const c of res.conflicts){
+    const t= typeof c.ru.t==='function' ? c.ru.t(S.x[tab]) : c.ru.t;
+    out.push(`<b>${lab(tab,c.v)}</b> doesn’t fit your other inputs: you entered ${fmtBase(tab,c.v,c.g)}, but <span style="font-family:var(--f-mono)">${t}</span> gives ${fmtBase(tab,c.v,c.x)}. Clear one of the values involved.`);
+  }
+  if(Object.keys(res.bad).length) out.push(`Some fields can’t be read (outlined in red). Use a positive number, optionally with a unit such as <code>27 C</code> or <code>0.5 L</code>.`);
+  return out.map(x=>`<div>${x}</div>`).join('');
+}
+function setStatus(tab,msg,done){ const el=document.getElementById('status-'+tab); el.classList.toggle('done',!!done); el.lastElementChild.innerHTML=msg; }
+
+// ---- cycle-specific rendering
+function renderCycle(res){
+  const v=res.val, D=S.mode==='diesel', has=k=>v[k]!==undefined;
+  // status
+  let msg, done=false;
+  if(!has('r')) msg='Start with the compression ratio <b>r</b> (or two of T₁, T₂, P₁, P₂, or the efficiency).';
+  else if(!has('T1')&&!has('T2')) msg='Add <b>T₁</b> to get the state temperatures.';
+  else if(!has('T3')) msg= D ? 'Add one heat-addition value: <b>r<sub>c</sub></b>, <b>q<sub>in</sub></b> or <b>T₃</b>.' : 'Add one heat-addition value: <b>q<sub>in</sub></b>, <b>T₃</b> or <b>P₃</b>.';
+  else if(!has('P1')&&!has('v1')) msg='Add <b>P₁</b> to get pressures, volumes and the MEP.';
+  else if(!has('m')) msg='Cycle solved per kg. For per-cycle work and power, add <b>V<sub>d</sub></b>, <b>V₁</b> or <b>m</b>.';
+  else if(!has('power')) { msg='Cycle solved. Add the engine speed <b>n</b> for power.'; done=true; }
+  else { msg='Cycle fully solved, including engine power.'; done=true; }
+  setStatus('cycle',msg,done);
+
+  // tiles
+  const etaO = has('r') ? 1-1/pw(v.r,v.k-1) : undefined;
+  const tile=(k,val,unit,cls,sub)=>`<div class="tile ${cls||''}"><div class="k">${k}</div><div class="v">${val===undefined?'—':val}${val!==undefined&&unit?`<small>${unit}</small>`:''}</div>${sub?`<div class="s">${sub}</div>`:''}</div>`;
+  let t= tile(`Thermal efficiency <span class="sym">η</span>`, has('eta')?fmt(v.eta*100):undefined,'%','hero', D&&etaO!==undefined?`Otto at same r: ${fmt(etaO*100)} %`: (D?'':'Ideal Otto, 1 − 1/r<sup>k−1</sup>'));
+  t+= tile(`Net work <span class="sym">${sub('w','net')}</span>`, has('wnet')?fmt(v.wnet):undefined,'kJ/kg');
+  t+= tile('Mean effective pressure', has('mep')?fmtU('cycle','mep',v.mep):undefined, unitOf('cycle','mep').s);
+  t+= has('power') ? tile('Power output', fmtU('cycle','power',v.power), unitOf('cycle','power').s, '', `${fmt(v.N)} cyl · ${fmt(v.n)} rpm · ${S.x.cycle===2?'4':'2'}-stroke`)
+                   : tile(`Peak temperature <span class="sym">${sub('T',3)}</span>`, has('T3')?fmtU('cycle','T3',v.T3):undefined, unitOf('cycle','T3').s);
+  document.getElementById('tiles-cycle').innerHTML=t;
+
+  // warnings
+  const extra=[];
+  if(has('r')&&v.r<=1) extra.push('The compression ratio must be greater than 1.');
+  if(D&&has('rc')&&has('r')&&v.rc>=v.r) extra.push('The cut-off ratio r<sub>c</sub> must be smaller than r (state 3 cannot be past bottom dead centre).');
+  if(has('T2')&&has('T3')&&v.T3<=v.T2) extra.push('T₃ must be higher than T₂: heat is added in process 2–3.');
+  if(Math.abs(v.cp-v.cv-v.R)>0.003) extra.push(`c<sub>p</sub> − c<sub>v</sub> = ${fmt(v.cp-v.cv)} differs from R = ${fmt(v.R)}. Check the gas properties.`);
+  const wh=warnHTML(res,'cycle',extra);
+  document.getElementById('warn-cycle').innerHTML=wh;
+  document.getElementById('warn-cycle3').innerHTML=wh;
+
+  // minimum-knowns checklist (stage 2)
+  const g=res.given, any=(...ks)=>ks.some(k=>g[k]!==undefined);
+  const need=[
+    [any('r','V1','V2','v2','eta')||(has('r')), 'Compression ratio r'],
+    [any('P1')||has('P1'), 'Initial pressure P₁'],
+    [any('T1')||has('T1'), 'Initial temperature T₁'],
+    [has('T3'), D?'One of r<sub>c</sub>, q<sub>in</sub> or T₃':'One of q<sub>in</sub>, T₃ or P₃'],
+    [has('m'), 'Optional: V<sub>d</sub>, V₁ or m, for work per cycle'],
+    [has('power'), 'Optional: N and n, for power'],
+  ];
+  document.getElementById('minguide').innerHTML='<ul class="minlist">'+need.map(([ok,t])=>`<li class="${ok?'ok':''}">${t}</li>`).join('')+'</ul>';
+
+  // final answers (stage 3)
+  const tag=k=>res.how[k]==='given'?'<span class="gv">given</span>':'';
+  const cell=(k)=>has(k)?`${fmtU('cycle',k,v[k])}${tag(k)}`:'—';
+  let a=`<div class="tablewrap"><table class="data st"><thead><tr><th>State</th><th></th><th>P (${unitOf('cycle','P1').s})</th><th>T (${unitOf('cycle','T1').s})</th><th>v (m³/kg)</th></tr></thead><tbody>`;
+  const sn=['Start of compression','End of compression',D?'End of heat addition (cut-off)':'End of heat addition','End of expansion'];
+  for(let i=1;i<=4;i++) a+=`<tr><td>${i}</td><td>${sn[i-1]}</td><td>${cell('P'+i)}</td><td>${cell('T'+i)}</td><td>${cell('v'+i)}</td></tr>`;
+  a+='</tbody></table></div><div class="ans">';
+  for(const k of ['eta','r',D&&'rc','qin','qout','wnet','mep','Vd','V1','V2','m','Qin','Qout','Wnet','power']){
+    if(!k||!has(k)) continue;
+    const u=unitOf('cycle',k).s;
+    a+=`<div><span><span class="sym">${lab('cycle',k)}</span>${tag(k)}</span><b>${fmtU('cycle',k,v[k])}${u?`<small>${u}</small>`:''}</b></div>`;
+  }
+  a+='</div>';
+  if(!has('T3')) a+='<p class="note">The cycle isn’t fully defined yet. Go back to step 2 and add the missing knowns.</p>';
+  document.getElementById('answers-cycle').innerHTML=a;
+
+  // process table
+  const T=[1,2,3,4].map(i=>v['T'+i]);
+  const allT=T.every(x=>x!==undefined);
+  let rows='';
+  if(allT){
+    const cv=v.cv, cp=v.cp;
+    const w23 = D ? ((has('P2')&&has('v3')&&has('v2'))? v.P2*(v.v3-v.v2) : v.R*(T[2]-T[1])) : 0;
+    const P=[
+      ['1–2','Isentropic compression',0,cv*(T[0]-T[1]),cv*(T[1]-T[0])],
+      ['2–3',D?'Const. pressure heat addition':'Const. volume heat addition',(D?cp:cv)*(T[2]-T[1]),w23,cv*(T[2]-T[1])],
+      ['3–4','Isentropic expansion',0,cv*(T[2]-T[3]),cv*(T[3]-T[2])],
+      ['4–1','Const. volume heat rejection',-cv*(T[3]-T[0]),0,cv*(T[0]-T[3])],
+    ];
+    const sq=P.reduce((a,p)=>a+p[2],0), sw=P.reduce((a,p)=>a+p[3],0);
+    rows=P.map(p=>`<tr><td>${p[0]}</td><td>${p[1]}</td><td>${fmt(p[2])}</td><td>${fmt(p[3])}</td><td>${fmt(p[4])}</td></tr>`).join('')+
+      `<tr class="net"><td>Σ</td><td>Cycle</td><td>${fmt(sq)}</td><td>${fmt(sw)}</td><td>${fmt(0)}</td></tr>`;
+    document.getElementById('proc-cycle').innerHTML=`<table class="data"><thead><tr><th>Process</th><th>Type</th><th>q (kJ/kg)</th><th>w (kJ/kg)</th><th>Δu (kJ/kg)</th></tr></thead><tbody>${rows}</tbody></table>`;
+  } else {
+    document.getElementById('proc-cycle').innerHTML='<p class="note">Appears once all four temperatures are known.</p>';
+  }
+
+  // diagrams
+  const full=['P1','P2','P3','P4','v1','v2','v3','v4'].every(has)&&allT;
+  const pv=document.getElementById('pv'), ts=document.getElementById('ts');
+  if(full){ pv.innerHTML=drawPv(v,D); ts.innerHTML=drawTs(v,D); }
+  else { const m='<div class="empty">The diagram draws once every state is known. Typical minimum: r, P₁, T₁ and one heat-addition value.</div>'; pv.innerHTML=m; ts.innerHTML=allT?drawTs(v,D):m; }
+}
+
+// ---- plotting
+function niceStep(x){ const e=pw(10,Math.floor(Math.log10(x))), f=x/e; return (f<1.5?1:f<3?2:f<7?5:10)*e; }
+function ticks(a,b){ const s=niceStep((b-a)/5), out=[]; for(let t=Math.ceil(a/s)*s;t<=b+1e-12;t+=s) out.push(+t.toPrecision(10)); return out; }
+function plot(o){
+  const W=380,H=280,ml=56,mr=14,mt=14,mb=42;
+  const X=x=>ml+(x-o.x0)/(o.x1-o.x0)*(W-ml-mr), Y=y=>H-mb-(y-o.y0)/(o.y1-o.y0)*(H-mt-mb);
+  const path=pts=>'M'+pts.map(p=>X(p[0]).toFixed(1)+','+Y(p[1]).toFixed(1)).join('L');
+  let s='';
+  for(const t of ticks(o.x0,o.x1)){ s+=`<line class="gr" x1="${X(t)}" x2="${X(t)}" y1="${mt}" y2="${H-mb}"/><text x="${X(t)}" y="${H-mb+15}" text-anchor="middle">${fmt(t)}</text>`; }
+  for(const t of ticks(o.y0,o.y1)){ s+=`<line class="gr" x1="${ml}" x2="${W-mr}" y1="${Y(t)}" y2="${Y(t)}"/><text x="${ml-6}" y="${Y(t)+4}" text-anchor="end">${fmt(t)}</text>`; }
+  s+=`<path class="area" d="${path(o.loop)}Z"/>`;
+  for(const seg of o.segs) s+=`<path class="${seg.c}" d="${path(seg.p)}"/>`;
+  s+=`<line class="ax" x1="${ml}" x2="${W-mr}" y1="${H-mb}" y2="${H-mb}"/><line class="ax" x1="${ml}" x2="${ml}" y1="${mt}" y2="${H-mb}"/>`;
+  s+=`<text class="alab" x="${(ml+W-mr)/2}" y="${H-8}" text-anchor="middle">${o.xl}</text><text class="alab" transform="translate(13 ${(mt+H-mb)/2}) rotate(-90)" text-anchor="middle">${o.yl}</text>`;
+  for(const p of o.pts){ const px=X(p[0]),py=Y(p[1]); s+=`<circle class="pt" cx="${px}" cy="${py}" r="4"/><text class="pl" x="${px+p[3]}" y="${py+p[4]}" text-anchor="middle">${p[2]}</text>`; }
+  return `<svg class="plot" viewBox="0 0 ${W} ${H}" role="img" aria-label="${o.aria}">${s}</svg>`;
+}
+const curve=(n,a,b,f)=>Array.from({length:n+1},(_,i)=>{const x=a+(b-a)*i/n; return [x,f(x)];});
+function drawPv(v,D){
+  const k=v.k;
+  const s12=curve(40,v.v1,v.v2,x=>v.P1*pw(v.v1/x,k));
+  const s23=[[v.v2,v.P2],[v.v3,v.P3]];
+  const s34=curve(40,v.v3,v.v4,x=>v.P3*pw(v.v3/x,k));
+  const s41=[[v.v4,v.P4],[v.v1,v.P1]];
+  const pmax=Math.max(v.P1,v.P2,v.P3,v.P4);
+  return plot({x0:0,x1:v.v1*1.08,y0:0,y1:pmax*1.1,xl:'v  (m³/kg)',yl:'P  (kPa)',aria:'Pressure versus specific volume diagram of the cycle',
+    loop:[...s12,...s23,...s34,...s41],
+    segs:[{c:'seg',p:s12},{c:'hin',p:s23},{c:'seg',p:s34},{c:'hout',p:s41}],
+    pts:[[v.v1,v.P1,'1',-2,-10],[v.v2,v.P2,'2',-12,4],[v.v3,v.P3,'3',D?8:12,-8],[v.v4,v.P4,'4',10,-8]]});
+}
+function drawTs(v,D){
+  const cv=v.cv, c23 = D ? v.k*cv : cv;
+  const s3 = c23*Math.log(v.T3/v.T2);
+  const s23=curve(40,0,s3,s=>v.T2*Math.exp(s/c23));
+  const s34=[[s3,v.T3],[s3,v.T4]];
+  const s41=curve(40,s3,0,s=>v.T4*Math.exp((s-s3)/cv));
+  const s12=[[0,v.T1],[0,v.T2]];
+  return plot({x0:-0.1*s3,x1:s3*1.12,y0:0,y1:v.T3*1.1,xl:'s − s₁  (kJ/kg·K)',yl:'T  (K)',aria:'Temperature versus entropy diagram of the cycle',
+    loop:[...s12,...s23,...s34,...s41],
+    segs:[{c:'seg',p:s12},{c:'hin',p:s23},{c:'seg',p:s34},{c:'hout',p:s41}],
+    pts:[[0,v.T1,'1',-12,4],[0,v.T2,'2',-12,4],[s3,v.T3,'3',12,4],[s3,v.T4,'4',12,4]]});
+}
+
+// ---- process & fuel rendering
+function renderSimple(tab,res){
+  const v=res.val;
+  if(tab==='process'){
+    const full=['P1','T1','v1','P2','T2','v2'].every(k=>v[k]!==undefined);
+    const anyState2=['P2','T2'].some(k=>v[k]!==undefined);
+    setStatus('process', full ? (v.m===undefined?'Both states solved per kg. Add m, V₁ or V₂ for totals.':'Both states and the totals are solved.') : anyState2 ? 'Partly solved. Add P₁ or T₁ (or another state value) to close the ideal-gas equation.' : 'Give state 1 and one value that fixes state 2.', full);
+    const extra=[]; if(res.mode==='g' && v.m===undefined) extra.push('“Any two states” uses total volumes V. Heat and work need a process type, so they stay blank here.');
+    document.getElementById('warn-process').innerHTML=warnHTML(res,tab,res.mode==='g'?extra:[]);
+  } else {
+    const done = ['power','eta','bsfc'].every(k=>v[k]!==undefined);
+    setStatus('fuel', done ? 'Power, efficiency and BSFC are all solved.' : 'Enter any two of brake power, fuel flow, CV, efficiency or BSFC. Power can also come from W<sub>cycle</sub>, N and n.', done);
+    document.getElementById('warn-fuel').innerHTML=warnHTML(res,tab,[]);
+  }
+}
+
+// ---- events
+function refreshAll(){ run('cycle'); run('process'); run('fuel'); }
+document.addEventListener('input',e=>{
+  const i=e.target; if(!i.dataset||!i.dataset.var) return;
+  S.raw[i.dataset.tab][i.dataset.var]=i.value; save();
+  if(i.dataset.tab==='gas') refreshAll(); else run(i.dataset.tab);
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  if(b.dataset.go){ if(b.dataset.mode){ S.mode=b.dataset.mode; syncToggles(); save(); run('cycle'); } goStage(+b.dataset.go); return; }
+  if(b.hasAttribute('data-restart')){ S.raw.cycle={}; for(const v in INPUTS.cycle) INPUTS.cycle[v].value=''; save(); run('cycle'); goStage(1); return; }
+  if(b.dataset.ug){ // unit chip
+    const ug=b.dataset.ug, [tab]=ug.split(':'), dim=DIMS[b.dataset.dim], n=Math.min(dim.length,CYCLE_UNITS);
+    const vars=Object.keys(INPUTS[tab]).filter(v=>ugOf(tab,v)===ug);
+    const old={}; vars.forEach(v=>old[v]=parseVal(S.raw[tab][v]||'',tab,v));
+    S.units[ug]=((S.units[ug]||0)+1)%n;
+    vars.forEach(v=>{ if(old[v]!==undefined&&isFinite(old[v])){ S.raw[tab][v]=fmt(fromBase(old[v],unitOf(tab,v))); INPUTS[tab][v].value=S.raw[tab][v]; } });
+    document.querySelectorAll(`button.u[data-ug="${ug}"]`).forEach(c=>c.textContent=unitOf(tab,vars[0]).s);
+    save(); run(tab); return;
+  }
+  if(b.dataset.mode){ S.mode=b.dataset.mode; syncToggles(); save(); run('cycle'); return; }
+  if(b.dataset.p){ S.pmode=b.dataset.p; syncToggles(); save(); run('process'); return; }
+  if(b.dataset.x){ const tab=b.closest('[data-stroke]').dataset.stroke; S.x[tab]=+b.dataset.x; syncToggles(); save(); run(tab); return; }
+  if(b.dataset.example){ const tab=b.dataset.example; loadExample(tab); return; }
+  if(b.dataset.clear){ const tab=b.dataset.clear; S.raw[tab]={}; for(const v in INPUTS[tab]) INPUTS[tab][v].value=''; save(); run(tab); return; }
+  if(b.dataset.tab && b.getAttribute('role')==='tab'){ showTab(b.dataset.tab); }
+});
+function loadExample(tab){
+  const ex = tab==='cycle'?EXAMPLES.cycle[S.mode] : tab==='process'?EXAMPLES.process[S.pmode] : EXAMPLES.fuel;
+  S.raw[tab]=Object.assign({},ex);
+  for(const k of Object.keys(S.units)) if(k.startsWith(tab+':')) delete S.units[k];
+  document.querySelectorAll(`button.u[data-ug^="${tab}:"]`).forEach(c=>c.textContent=DIMS[c.dataset.dim][0].s);
+  for(const v in INPUTS[tab]) INPUTS[tab][v].value=S.raw[tab][v]||'';
+  save(); run(tab);
+}
+function syncToggles(){
+  document.querySelectorAll('[data-mode]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===S.mode));
+  document.querySelectorAll('[data-p]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.p===S.pmode));
+  document.querySelectorAll('[data-stroke]').forEach(g=>g.querySelectorAll('[data-x]').forEach(b=>b.setAttribute('aria-pressed',+b.dataset.x===S.x[g.dataset.stroke])));
+  document.querySelectorAll('.cyc-name').forEach(s=>s.textContent=S.mode==='diesel'?'Diesel':'Otto');
+  document.getElementById('pmode-desc').innerHTML=PDESC[S.pmode];
+  document.getElementById('pformulas').innerHTML=PFORM[S.pmode].map(f=>`<div class="eqn">${f}</div>`).join('');
+}
+let STAGE=1;
+function goStage(n){
+  STAGE=n;
+  document.querySelectorAll('.stage').forEach(s=>s.hidden = +s.dataset.stage!==n);
+  document.querySelectorAll('.stepper [data-go]').forEach(b=>{ const k=+b.dataset.go; b.toggleAttribute('aria-current',k===n); if(k===n) b.setAttribute('aria-current','step'); b.classList.toggle('done',k<n); });
+  document.getElementById('gasbar').hidden = S.tab==='sheet' || (S.tab==='solver' && n!==2);
+  const top=document.querySelector('.stepper'); if(top && top.getBoundingClientRect().top<0) top.scrollIntoView({block:'start'});
+}
+function showTab(t){
+  S.tab=t;
+  document.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
+  ['solver','process','fuel','sheet'].forEach(x=>document.getElementById('tab-'+x).hidden = x!==t);
+  document.getElementById('gasbar').hidden = t==='sheet' || (t==='solver' && STAGE!==2);
+  try{ history.replaceState(null,'','#'+t); }catch(e){}
+}
+// initial
+if(firstVisit){ S.raw.process=Object.assign({},EXAMPLES.process.s); S.raw.fuel=Object.assign({},EXAMPLES.fuel);
+  for(const tab of ['cycle','process','fuel']) for(const v in INPUTS[tab]) INPUTS[tab][v].value=S.raw[tab][v]||''; }
+document.querySelectorAll('button.u[data-ug]').forEach(c=>{ const [tab]=c.dataset.ug.split(':'); const d=DIMS[c.dataset.dim]; c.textContent=d[Math.min(S.units[c.dataset.ug]||0,d.length-1)].s; });
+syncToggles();
+const h=(location.hash||'').slice(1);
+showTab(['solver','process','fuel','sheet'].includes(h)?h:'solver');
+refreshAll();
+goStage(1);
+</script>
+
+</body>
+</html>
