@@ -30,7 +30,12 @@
 img{max-width:100%}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 var(--f-body)}
 .wrap{max-width:1280px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
-header.top{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px 24px;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+header.top{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title logo" "title nav";align-items:end;gap:12px 24px;padding-bottom:14px;border-bottom:2px solid var(--ink)}
+header.top .titleblock{grid-area:title;min-width:0}
+header.top nav.tabs{grid-area:nav;justify-content:flex-end}
+/* Logo: transparent cut-out used as a mask, filled with the accent so it follows the theme's orange */
+.logo{grid-area:logo;justify-self:end;align-self:start;display:block;height:96px;aspect-ratio:363/348;background:var(--accent);-webkit-mask:url(logo.png) center/contain no-repeat;mask:url(logo.png) center/contain no-repeat}
+@media (max-width:760px){header.top{grid-template-areas:"title logo" "nav nav"}.logo{height:64px}header.top nav.tabs{justify-content:flex-start}}
 h1{font:700 clamp(30px,5vw,44px)/1 var(--f-display);letter-spacing:.01em;text-transform:uppercase;margin:0;text-wrap:balance}
 h1 span{color:var(--accent)}
 .tag{color:var(--muted);margin:6px 0 0;max-width:62ch}
@@ -235,7 +240,8 @@ table.data.st td:first-child{width:40px}
 <body>
 <div class="wrap">
   <header class="top">
-    <div>
+    <span class="logo" role="img" aria-label="Arab Academy for Science, Technology and Maritime Transport logo"></span>
+    <div class="titleblock">
       <h1>Otto <span>&amp;</span> Diesel Cycle Solver</h1>
       <p class="tag">Air-standard cycles with constant specific heats. Type only what the problem gives you. Every other value that follows from the formulas fills in, with the working shown.</p>
     </div>
