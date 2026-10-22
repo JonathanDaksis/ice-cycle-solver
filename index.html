@@ -179,6 +179,35 @@ table.sym td,table.sym th{padding:5px 6px;border-bottom:1px solid var(--line-sof
 table.sym th{font:500 12px var(--f-body);color:var(--muted);border-bottom:1px solid var(--line)}
 table.sym td:first-child{font-family:var(--f-mono);white-space:nowrap}
 .tip{grid-column:1/-1;background:var(--panel);border:1px solid var(--accent);border-radius:8px;padding:12px 14px;font-size:14px}
+/* 3D engine */
+.enggrid{display:grid;grid-template-columns:minmax(0,1fr) 320px;gap:18px;align-items:start}
+@media (max-width:980px){.enggrid{grid-template-columns:minmax(0,1fr)}}
+.engview{position:relative;height:clamp(380px,68vh,700px);border:1px solid var(--line);border-radius:10px;overflow:hidden;background:radial-gradient(ellipse at 50% 35%,var(--panel),var(--bg));touch-action:none}
+.eng-canvas{display:block;width:100%;height:100%;cursor:grab}
+.eng-canvas:active{cursor:grabbing}
+.eng-loading{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-size:14px}
+.eng-labels{position:absolute;inset:0;pointer-events:none}
+.elab{position:absolute;left:0;top:0;font:700 17px/1 var(--f-display);color:var(--ink);background:var(--panel);border:1.5px solid var(--ink);border-radius:5px;padding:3px 6px;box-shadow:0 1px 3px rgba(0,0,0,.25)}
+.eng-stroke{position:absolute;left:12px;top:12px;max-width:min(360px,calc(100% - 24px));background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:10px 12px;display:flex;flex-direction:column;gap:2px;font-size:13px;pointer-events:none}
+.eng-stroke:empty{display:none}
+.eng-stroke b{font:700 22px/1.1 var(--f-display);text-transform:uppercase;letter-spacing:.02em;color:var(--accent)}
+.eng-stroke em{font-style:normal;color:var(--muted);font-size:12px}
+.eng-sn{font:500 11px var(--f-mono);color:var(--muted)}
+.eng-hint{position:absolute;left:12px;right:12px;bottom:10px;font-size:12px;color:var(--muted);text-align:center;pointer-events:none}
+.engbar{display:flex;flex-wrap:wrap;gap:10px 14px;align-items:center}
+.engslider{flex:1 1 260px;display:flex;align-items:center;gap:10px;min-width:0}
+.engslider input{flex:1;min-width:0;accent-color:var(--accent)}
+.engslider output{font:500 14px var(--f-mono);min-width:44px;text-align:right}
+.parts{display:flex;flex-direction:column;gap:4px}
+.part{display:flex;align-items:center;gap:10px;border:1px solid transparent;background:none;color:var(--ink);font:inherit;font-size:14px;padding:6px 8px;border-radius:6px;cursor:pointer;text-align:left}
+.part:hover{background:var(--bg)}
+.part[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.sw{width:14px;height:14px;border-radius:3px;flex:none;border:1px solid rgba(0,0,0,.25)}
+.pl{font:700 15px var(--f-display);width:16px;text-align:center;color:var(--muted)}
+#eng-info p{margin:0;font-size:14px}
+.ihead{display:flex;align-items:center;gap:8px;font-size:16px}
+.tog{display:flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+.tog input{accent-color:var(--accent);width:16px;height:16px}
 /* Stages */
 .stepper{display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;list-style:none;padding:0;margin:0 0 18px}
 .stepper li{display:flex;align-items:center;gap:8px}
@@ -249,6 +278,7 @@ table.data.st td:first-child{width:40px}
       <button role="tab" data-tab="solver" aria-selected="true">Cycle solver</button>
       <button role="tab" data-tab="process" aria-selected="false">Single process</button>
       <button role="tab" data-tab="fuel" aria-selected="false">Power &amp; fuel</button>
+      <button role="tab" data-tab="engine" aria-selected="false">3D engine</button>
       <button role="tab" data-tab="sheet" aria-selected="false">Formula sheet</button>
     </nav>
   </header>
@@ -447,6 +477,42 @@ table.data.st td:first-child{width:40px}
           <div class="eqn key">η<sub>th</sub> = Ẇ<sub>out</sub> / (ṁ<sub>f</sub> · CV)</div>
           <div class="eqn key">BSFC = ṁ<sub>f</sub> / Ẇ<sub>brake</sub></div>
           <p class="note">W<sub>cycle</sub> is the work per cylinder per cycle. ṁ<sub>f</sub>·CV is the fuel heat rate Q̇<sub>fuel</sub>. BSFC is shown in g/kWh.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 3D ENGINE ============ -->
+  <section class="panel" id="tab-engine" role="tabpanel" hidden>
+    <div class="enggrid">
+      <div class="col">
+        <div class="engview" id="eng-view">
+          <div class="eng-loading">Loading the 3D engine…</div>
+          <div class="eng-labels" id="eng-labels" aria-hidden="true"></div>
+          <div class="eng-stroke" id="eng-stroke" aria-live="polite"></div>
+          <div class="eng-hint">Drag to rotate in any direction · scroll or pinch to zoom · right-drag to pan · click a part to select it · double-click to view it alone</div>
+        </div>
+        <div class="engbar">
+          <button class="btn primary" type="button" id="eng-play" aria-pressed="true">Pause</button>
+          <label class="engslider" for="eng-angle"><span class="eyebrow">Crank angle</span><input type="range" id="eng-angle" min="0" max="719" step="1" value="0"><output id="eng-angle-out">0°</output></label>
+          <div class="seg" role="group" aria-label="Speed" id="eng-speed">
+            <button type="button" data-speed="30" aria-pressed="false">Slow</button>
+            <button type="button" data-speed="90" aria-pressed="true">Normal</button>
+            <button type="button" data-speed="360" aria-pressed="false">Fast</button>
+          </div>
+        </div>
+      </div>
+      <div class="col">
+        <div class="card">
+          <h3>Parts <em>letters match the diagram</em></h3>
+          <div class="parts" id="eng-parts"></div>
+        </div>
+        <div class="card" id="eng-info"></div>
+        <div class="card">
+          <h3>View</h3>
+          <label class="tog"><input type="checkbox" id="eng-cutaway" checked> Cutaway section (see inside)</label>
+          <label class="tog"><input type="checkbox" id="eng-labels-t" checked> Letter labels</label>
+          <button class="btn" type="button" id="eng-reset">Reset view</button>
         </div>
       </div>
     </div>
@@ -1225,19 +1291,34 @@ function syncToggles(){
   document.getElementById('pmode-desc').innerHTML=PDESC[S.pmode];
   document.getElementById('pformulas').innerHTML=PFORM[S.pmode].map(f=>`<div class="eqn">${f}</div>`).join('');
 }
+// 3D engine: three.js and the model are only downloaded the first time the tab opens
+let engineStarted=false;
+function loadScript(src){ return new Promise((res,rej)=>{ const s=document.createElement('script'); s.src=src; s.onload=res; s.onerror=()=>rej(new Error(src)); document.head.appendChild(s); }); }
+async function initEngine(){
+  if(engineStarted) return; engineStarted=true;
+  try{
+    await loadScript('https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js');
+    await loadScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/TrackballControls.js');
+    await loadScript('engine3d.js?v=1');
+  }catch(e){
+    engineStarted=false;
+    const l=document.querySelector('.eng-loading'); if(l) l.textContent='The 3D engine couldn’t load. Check your internet connection and open this tab again.';
+  }
+}
 let STAGE=1;
 function goStage(n){
   STAGE=n;
   document.querySelectorAll('.stage').forEach(s=>s.hidden = +s.dataset.stage!==n);
   document.querySelectorAll('.stepper [data-go]').forEach(b=>{ const k=+b.dataset.go; b.toggleAttribute('aria-current',k===n); if(k===n) b.setAttribute('aria-current','step'); b.classList.toggle('done',k<n); });
-  document.getElementById('gasbar').hidden = S.tab==='sheet' || (S.tab==='solver' && n!==2);
+  document.getElementById('gasbar').hidden = S.tab==='sheet' || S.tab==='engine' || (S.tab==='solver' && n!==2);
   const top=document.querySelector('.stepper'); if(top && top.getBoundingClientRect().top<0) top.scrollIntoView({block:'start'});
 }
 function showTab(t){
   S.tab=t;
   document.querySelectorAll('[role="tab"]').forEach(b=>b.setAttribute('aria-selected',b.dataset.tab===t));
-  ['solver','process','fuel','sheet'].forEach(x=>document.getElementById('tab-'+x).hidden = x!==t);
-  document.getElementById('gasbar').hidden = t==='sheet' || (t==='solver' && STAGE!==2);
+  ['solver','process','fuel','engine','sheet'].forEach(x=>document.getElementById('tab-'+x).hidden = x!==t);
+  document.getElementById('gasbar').hidden = t==='sheet' || t==='engine' || (t==='solver' && STAGE!==2);
+  if(t==='engine') initEngine();
   try{ history.replaceState(null,'','#'+t); }catch(e){}
 }
 // ---- formula sheet search (Ctrl+F style)
@@ -1301,7 +1382,7 @@ if(firstVisit){ S.raw.process=Object.assign({},EXAMPLES.process.s); S.raw.fuel=O
 document.querySelectorAll('button.u[data-ug]').forEach(c=>{ const [tab]=c.dataset.ug.split(':'); const d=DIMS[c.dataset.dim]; c.textContent=d[Math.min(S.units[c.dataset.ug]||0,d.length-1)].s; });
 syncToggles();
 const h=(location.hash||'').slice(1);
-showTab(['solver','process','fuel','sheet'].includes(h)?h:'solver');
+showTab(['solver','process','fuel','engine','sheet'].includes(h)?h:'solver');
 refreshAll();
 goStage(1);
 </script>
